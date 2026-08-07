@@ -8,7 +8,6 @@ import com.frend.planit.domain.chatbot.chatMessage.entity.AIChatMessage;
 import com.frend.planit.domain.chatbot.chatMessage.repository.AIChatMessageRepository;
 import com.frend.planit.domain.chatbot.chatRoom.entity.AIChatRoomEntity;
 import com.frend.planit.domain.chatbot.chatRoom.repository.AIChatRoomRepository;
-import com.frend.planit.domain.chatbot.chatRoom.service.AIChatRoomService;
 import com.frend.planit.domain.chatbot.chatbotUtils.AIUserContextHelper;
 import com.frend.planit.domain.user.entity.User;
 import com.frend.planit.domain.user.repository.UserRepository;
@@ -16,19 +15,28 @@ import com.frend.planit.global.exception.ServiceException;
 import com.frend.planit.global.response.ErrorType;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.metadata.ChatResponseMetadata;
+import org.springframework.ai.chat.metadata.Usage;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AIChatMessageService {
+
+    private static final String PROMPT_VERSION = "ai-chat-v1";
 
     private final AIChatRoomRepository aiChatRoomRepository;
     private final AIChatMessageRepository aiChatMessageRepository;
@@ -42,6 +50,7 @@ public class AIChatMessageService {
             Long userId,
             Long chatRoomId,
             AIChatMessageRequest request) {
+        long requestStartedAt = System.nanoTime();
 
         // 로그인 인증 사용자 여부 확인
         checkUser(userId);
@@ -69,7 +78,11 @@ public class AIChatMessageService {
 
         messages.add(new UserMessage(request.getUserMessage()));
 
-        String botMessage = chatClient.call(new Prompt(messages))
+        long llmStartedAt = System.nanoTime();
+        ChatResponse chatResponse = chatClient.call(new Prompt(messages));
+        long llmDurationMs = elapsedMillis(llmStartedAt);
+
+        String botMessage = chatResponse
                 .getResult()
                 .getOutput()
                 .getText();
@@ -78,7 +91,50 @@ public class AIChatMessageService {
         AIChatMessage message = chatRoom.addChatMessage(request.getUserMessage(), botMessage);
         AIChatMessage savedMessage = aiChatMessageRepository.save(message);
 
+        try {
+            logMetrics(chatResponse, llmDurationMs, elapsedMillis(requestStartedAt));
+        } catch (RuntimeException e) {
+            log.warn(
+                    "event=ai_chat_response_metric_failed promptVersion={} errorType={}",
+                    PROMPT_VERSION,
+                    e.getClass().getSimpleName()
+            );
+        }
+
         return AIChatMessageResponse.from(savedMessage);
+    }
+
+    private void logMetrics(ChatResponse chatResponse, long llmDurationMs, long serviceDurationMs) {
+        ChatResponseMetadata metadata = chatResponse.getMetadata();
+        Usage usage = metadata.getUsage();
+
+        int promptTokens = tokenCount(usage.getPromptTokens());
+        int completionTokens = tokenCount(usage.getCompletionTokens());
+        int totalTokens = tokenCount(usage.getTotalTokens());
+        boolean usageAvailable = totalTokens > 0;
+        String model = StringUtils.hasText(metadata.getModel()) ? metadata.getModel() : "unknown";
+
+        log.info(
+                "event=ai_chat_response_metric promptVersion={} model={} usageAvailable={} "
+                        + "promptTokens={} completionTokens={} totalTokens={} "
+                        + "llmDurationMs={} serviceDurationMs={}",
+                PROMPT_VERSION,
+                model,
+                usageAvailable,
+                promptTokens,
+                completionTokens,
+                totalTokens,
+                llmDurationMs,
+                serviceDurationMs
+        );
+    }
+
+    private int tokenCount(Integer tokens) {
+        return tokens == null ? 0 : tokens;
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
     }
 
     // 사용자 조회
