@@ -5,6 +5,7 @@ import com.frend.planit.domain.calendar.schedule.repository.ScheduleRepository;
 import com.frend.planit.domain.chatbot.chatMessage.dto.request.AIChatMessageRequest;
 import com.frend.planit.domain.chatbot.chatMessage.dto.response.AIChatMessageResponse;
 import com.frend.planit.domain.chatbot.chatMessage.entity.AIChatMessage;
+import com.frend.planit.domain.chatbot.chatMessage.repository.AIChatMessageRepository;
 import com.frend.planit.domain.chatbot.chatRoom.entity.AIChatRoomEntity;
 import com.frend.planit.domain.chatbot.chatRoom.repository.AIChatRoomRepository;
 import com.frend.planit.domain.chatbot.chatRoom.service.AIChatRoomService;
@@ -30,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AIChatMessageService {
 
     private final AIChatRoomRepository aiChatRoomRepository;
+    private final AIChatMessageRepository aiChatMessageRepository;
     private final OpenAiChatModel chatClient;
     private final UserRepository userRepository;
     private final ScheduleRepository scheduleRepository;
@@ -73,8 +75,8 @@ public class AIChatMessageService {
                 .getText();
 
         // 메세지 저장
-        AIChatMessage savedMessage = chatRoom.addChatMessage(request.getUserMessage(), botMessage);
-        aiChatRoomRepository.save(chatRoom);
+        AIChatMessage message = chatRoom.addChatMessage(request.getUserMessage(), botMessage);
+        AIChatMessage savedMessage = aiChatMessageRepository.save(message);
 
         return AIChatMessageResponse.from(savedMessage);
     }
