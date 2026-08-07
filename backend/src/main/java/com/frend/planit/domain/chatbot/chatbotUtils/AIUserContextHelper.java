@@ -13,7 +13,7 @@ public class AIUserContextHelper {
         StringBuilder sb = new StringBuilder();
 
         sb.append("""
-                당신은 LLaMA3 기반의 여행 어시스턴트입니다.
+                당신은 여행 계획을 돕는 여행 어시스턴트입니다.
                 
                 사용자가 입력한 언어를 자동으로 감지하여, "그 언어로만" 응답해야 합니다.
                 예를 들어, 사용자가 한국어로 질문하면 반드시 한국어로만 답하고,
