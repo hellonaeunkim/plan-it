@@ -1,6 +1,62 @@
+### Gradle ###
+/backend/HELP.md
+/backend/.gradle/
+/backend/build/
+/backend/**/build/
+!/backend/gradle/wrapper/gradle-wrapper.jar
+!/backend/**/src/main/**/build/
+!/backend/**/src/test/**/build/
+
+### STS ###
+/backend/.apt_generated/
+/backend/.classpath
+/backend/.factorypath
+/backend/.project
+/backend/.settings/
+/backend/springBeans
+/backend/.sts4-cache/
+/backend/**/bin/
+!/backend/**/src/main/**/bin/
+!/backend/**/src/test/**/bin/
+
 ### IntelliJ IDEA ###
-.idea
+.idea/
+*.iws
+*.iml
+*.ipr
+/backend/**/out/
+!/backend/**/src/main/**/out/
+!/backend/**/src/test/**/out/
+
+### NetBeans ###
+/backend/nbproject/private/
+/backend/nbbuild/
+/backend/dist/
+/backend/nbdist/
+/backend/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### OS ###
+.DS_*
+.DS_Store
+._.DS_Store
+**/.DS_Store
+**/._.DS_Store
+
+### Application generated files ###
+/backend/logs/
+/backend/src/main/generated/
+
+### Secrets ###
+application-secret.yml
+
+### Local database ###
 db_dev.mv.db
 db_dev.trace.db
 db_local.mv.db
 db_local.trace.db
+
+### Environment ###
+/.env
