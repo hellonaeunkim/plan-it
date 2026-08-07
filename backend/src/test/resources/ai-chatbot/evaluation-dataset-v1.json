@@ -1,0 +1,226 @@
+{
+  "datasetVersion": "ai-chat-eval-v1",
+  "evaluationDate": "2026-08-08",
+  "model": "openai/gpt-oss-120b",
+  "scheduleFixture": [
+    {
+      "scheduleTitle": "서울 역사 문화 여행",
+      "startDate": "2026-08-20",
+      "endDate": "2026-08-21",
+      "days": [
+        {
+          "date": "2026-08-20",
+          "travels": [
+            {
+              "location": "경복궁",
+              "category": "관광",
+              "visitHour": 9,
+              "visitMinute": 0
+            },
+            {
+              "location": "토속촌 삼계탕",
+              "category": "음식점",
+              "visitHour": 12,
+              "visitMinute": 30
+            },
+            {
+              "location": "국립민속박물관",
+              "category": "관광",
+              "visitHour": 15,
+              "visitMinute": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-08-21",
+          "travels": [
+            {
+              "location": "북촌한옥마을",
+              "category": "관광",
+              "visitHour": 10,
+              "visitMinute": 0
+            },
+            {
+              "location": "창덕궁",
+              "category": "관광",
+              "visitHour": 14,
+              "visitMinute": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scheduleTitle": "부산 바다 여행",
+      "startDate": "2025-12-13",
+      "endDate": "2025-12-14",
+      "days": [
+        {
+          "date": "2025-12-13",
+          "travels": [
+            {
+              "location": "해운대해수욕장",
+              "category": "관광",
+              "visitHour": 11,
+              "visitMinute": 0
+            },
+            {
+              "location": "광안리해수욕장",
+              "category": "관광",
+              "visitHour": 18,
+              "visitMinute": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scheduleTitle": "제주 겨울 여행",
+      "startDate": "2026-12-19",
+      "endDate": "2026-12-20",
+      "days": [
+        {
+          "date": "2026-12-19",
+          "travels": [
+            {
+              "location": "성산일출봉",
+              "category": "관광",
+              "visitHour": 8,
+              "visitMinute": 30
+            },
+            {
+              "location": "섭지코지",
+              "category": "관광",
+              "visitHour": 13,
+              "visitMinute": 0
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "independentQuestions": [
+    {
+      "id": "specific-date-schedule",
+      "category": "특정 날짜 일정 조회",
+      "language": "ko",
+      "question": "2026년 8월 20일 일정을 알려줘.",
+      "requiredFacts": [
+        "09:00 경복궁",
+        "12:30 토속촌 삼계탕",
+        "15:00 국립민속박물관"
+      ],
+      "forbiddenClaims": [
+        "평가 데이터에 없는 일정이 확정됐다고 표현하지 않는다"
+      ]
+    },
+    {
+      "id": "next-destination",
+      "category": "다음 방문 장소 조회",
+      "language": "ko",
+      "question": "경복궁 다음에는 어디에 가기로 했어? 시간도 알려줘.",
+      "requiredFacts": [
+        "12:30 토속촌 삼계탕"
+      ],
+      "forbiddenClaims": [
+        "국립민속박물관을 바로 다음 일정이라고 표현하지 않는다"
+      ]
+    },
+    {
+      "id": "empty-date",
+      "category": "일정이 없는 날짜 조회",
+      "language": "ko",
+      "question": "2026년 8월 22일에는 어떤 일정이 있어?",
+      "requiredFacts": [
+        "해당 날짜에 등록된 일정이 없다"
+      ],
+      "forbiddenClaims": [
+        "다른 날짜의 장소를 8월 22일 일정으로 표현하지 않는다"
+      ]
+    },
+    {
+      "id": "time-constraint",
+      "category": "시간 제약 확인",
+      "language": "ko",
+      "question": "8월 20일 오후 1시에 광화문광장을 방문하려고 해. 기존 일정 사이에 시간이 있는지 알려줘.",
+      "requiredFacts": [
+        "12:30 토속촌 삼계탕",
+        "15:00 국립민속박물관",
+        "이동 시간 정보가 없으면 확정적으로 판단할 수 없다"
+      ],
+      "forbiddenClaims": [
+        "실제 이동 시간을 근거 없이 확정하지 않는다",
+        "광화문광장 방문이 DB 일정에 이미 등록됐다고 표현하지 않는다"
+      ]
+    },
+    {
+      "id": "english-language",
+      "category": "사용자 언어 일치",
+      "language": "en",
+      "question": "What is my itinerary for August 21, 2026?",
+      "requiredFacts": [
+        "10:00 Bukchon Hanok Village",
+        "14:00 Changdeokgung Palace",
+        "answer in English"
+      ],
+      "forbiddenClaims": [
+        "한국어 문장을 섞지 않는다"
+      ]
+    },
+    {
+      "id": "missing-information",
+      "category": "일정 데이터만으로 답할 수 없는 질문",
+      "language": "ko",
+      "question": "서울 여행 항공편 예약번호를 알려줘.",
+      "requiredFacts": [
+        "제공된 일정에는 항공편 예약번호가 없다"
+      ],
+      "forbiddenClaims": [
+        "예약번호를 생성하거나 추측하지 않는다"
+      ]
+    }
+  ],
+  "longTermMemoryScenario": {
+    "chatRoomPolicy": "아래 대화를 동일한 채팅방에서 순서대로 실행한다",
+    "preferenceTurn": {
+      "userMessage": "저는 땅콩 알레르기가 있어요.",
+      "expectedBehavior": "땅콩 알레르기 정보를 기억한다"
+    },
+    "fillerTurns": [
+      "서울 여행 첫날은 언제야?",
+      "둘째 날은 언제야?",
+      "경복궁은 몇 시에 방문해?",
+      "서울 여행의 마지막 일정은 무엇이야?"
+    ],
+    "finalQuestion": "제가 말한 음식 알레르기가 무엇이었죠?",
+    "requiredBehavior": "사용자가 땅콩 알레르기가 있다고 답한다",
+    "purpose": "오래전에 제공한 사용자 제약을 이후 답변에서 정확히 회상하는지 확인한다"
+  },
+  "rubric": [
+    {
+      "id": "schedule-fact-accuracy",
+      "name": "일정 사실 일치",
+      "score": "0 또는 1"
+    },
+    {
+      "id": "preference-constraint",
+      "name": "사용자 선호와 제약 반영",
+      "score": "0 또는 1"
+    },
+    {
+      "id": "conversation-context",
+      "name": "대화 문맥 유지",
+      "score": "0 또는 1"
+    },
+    {
+      "id": "language-consistency",
+      "name": "질문과 같은 언어 사용",
+      "score": "0 또는 1"
+    },
+    {
+      "id": "no-unsupported-claims",
+      "name": "근거 없는 정보 생성 방지",
+      "score": "0 또는 1"
+    }
+  ]
+}
