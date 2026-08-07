@@ -1,7 +1,9 @@
 package com.frend.planit.domain.chatbot.chatMessage.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.frend.planit.domain.accommodation.service.AccommodationService;
@@ -14,6 +16,8 @@ import com.frend.planit.domain.chatbot.chatRoom.repository.AIChatRoomRepository;
 import com.frend.planit.domain.user.entity.User;
 import com.frend.planit.domain.user.enums.LoginType;
 import com.frend.planit.domain.user.repository.UserRepository;
+import com.frend.planit.global.exception.ServiceException;
+import com.frend.planit.global.response.ErrorType;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -93,5 +97,34 @@ class AIChatMessagePersistenceTest {
             assertThat(savedMessage.getBotMessage()).isEqualTo(BOT_MESSAGE);
             assertThat(savedMessage.getAIChatRoom().getId()).isEqualTo(chatRoom.getId());
         });
+    }
+
+    @Test
+    void createMessagesRejectsAccessToAnotherUsersChatRoom() {
+        User owner = userRepository.save(User.builder()
+                .loginId("chat-room-owner")
+                .nickname("chat-room-owner")
+                .loginType(LoginType.LOCAL)
+                .build());
+        User requester = userRepository.save(User.builder()
+                .loginId("chat-room-requester")
+                .nickname("chat-room-requester")
+                .loginType(LoginType.LOCAL)
+                .build());
+        AIChatRoomEntity ownersChatRoom = aiChatRoomRepository.save(AIChatRoomEntity.of(owner));
+
+        ChatResponse chatResponse = new ChatResponse(
+                List.of(new Generation(new AssistantMessage(BOT_MESSAGE))));
+        when(chatClient.call(any(Prompt.class))).thenReturn(chatResponse);
+
+        assertThatThrownBy(() -> aiChatMessageService.createMessages(
+                requester.getId(),
+                ownersChatRoom.getId(),
+                new AIChatMessageRequest(USER_MESSAGE)))
+                .isInstanceOf(ServiceException.class)
+                .hasMessage(ErrorType.AI_CHAT_ROOM_NOT_FOUND.getMessage());
+
+        verifyNoInteractions(chatClient);
+        assertThat(aiChatMessageRepository.findAll()).isEmpty();
     }
 }

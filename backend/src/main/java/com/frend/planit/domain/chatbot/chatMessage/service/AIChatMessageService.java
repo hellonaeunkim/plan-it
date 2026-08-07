@@ -47,7 +47,7 @@ public class AIChatMessageService {
         checkUser(userId);
 
         // 채팅방 조회
-        AIChatRoomEntity chatRoom = aiChatRoomRepository.findById(chatRoomId)
+        AIChatRoomEntity chatRoom = aiChatRoomRepository.findByIdAndUserId(chatRoomId, userId)
                 .orElseThrow(() -> new ServiceException(ErrorType.AI_CHAT_ROOM_NOT_FOUND));
 
         // 사용자 Schedule 조회
