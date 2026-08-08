@@ -111,20 +111,40 @@ clean {
 }
 
 // querydsl 수동 빌드 task 정의
-// 실제 Groq API를 호출하는 평가/스모크 테스트 전용 작업 (external-ai 태그, 실제 비용 발생)
+// 실제 Groq API를 한 번 호출하는 스모크 테스트 전용 작업 (실제 비용 발생)
 // 기본 test 작업에서는 제외되며, 명시적으로만 실행한다: ./gradlew groqEvaluationTest
 tasks.register('groqEvaluationTest', Test) {
     group = 'verification'
-    description = '실제 Groq API를 호출하는 평가/스모크 테스트만 실행합니다 (external-ai 태그).'
+    description = '실제 Groq API를 한 번 호출하는 스모크 테스트만 실행합니다.'
 
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
 
     useJUnitPlatform {
-        includeTags 'external-ai'
+        includeTags 'ai-smoke'
     }
 
     // 캐시된 이전 성공 결과로 실제 호출 없이 넘어가지 않도록 매번 재실행
+    outputs.upToDateWhen { false }
+}
+
+// 실제 서비스 흐름으로 고정 평가셋 12건을 순차 실행하는 기준선 측정 작업 (실제 비용 발생)
+// 터미널 캡처가 필요하므로 사용자가 명시적으로만 실행한다: ./gradlew groqBaselineEvaluation --console=plain
+tasks.register('groqBaselineEvaluation', Test) {
+    group = 'verification'
+    description = '실제 Groq API와 AIChatMessageService를 사용해 기준선 평가 12건을 실행합니다.'
+
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+
+    useJUnitPlatform {
+        includeTags 'ai-baseline'
+    }
+
+    testLogging {
+        showStandardStreams = true
+    }
+
     outputs.upToDateWhen { false }
 }
 

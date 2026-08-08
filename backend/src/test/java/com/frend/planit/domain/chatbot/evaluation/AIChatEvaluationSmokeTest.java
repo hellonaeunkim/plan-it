@@ -23,6 +23,7 @@ import org.springframework.util.StringUtils;
  * 실제 호출을 확인하려면 {@code ./gradlew groqEvaluationTest}로 실행한다.
  */
 @Tag("external-ai")
+@Tag("ai-smoke")
 @SpringBootTest(properties = {
         "spring.mail.host=localhost",
         "spring.mail.port=2525",
