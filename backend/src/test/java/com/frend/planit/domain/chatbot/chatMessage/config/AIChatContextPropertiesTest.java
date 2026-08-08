@@ -9,12 +9,18 @@ class AIChatContextPropertiesTest {
     @Test
     void rejectsNegativeScheduleLookAheadDays() {
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> new AIChatContextProperties(-1, 3));
+                .isThrownBy(() -> new AIChatContextProperties(-1, 3, 3));
     }
 
     @Test
     void rejectsNonPositiveMaxSchedules() {
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> new AIChatContextProperties(180, 0));
+                .isThrownBy(() -> new AIChatContextProperties(180, 0, 3));
+    }
+
+    @Test
+    void rejectsNonPositiveMaxRecentTurns() {
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> new AIChatContextProperties(180, 3, 0));
     }
 }

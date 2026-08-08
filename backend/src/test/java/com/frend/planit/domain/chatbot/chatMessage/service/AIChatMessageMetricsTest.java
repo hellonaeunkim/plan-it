@@ -79,7 +79,7 @@ class AIChatMessageMetricsTest {
                 userRepository,
                 scheduleRepository,
                 new AIChatPromptFactory(FIXED_CLOCK),
-                new AIChatContextProperties(180, 3),
+                new AIChatContextProperties(180, 3, 3),
                 FIXED_CLOCK
         );
 
