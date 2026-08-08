@@ -68,17 +68,27 @@ class AIChatBaselineEvaluationTest {
 
     private static final String BASELINE_STAGE = "baseline";
     private static final String PROMPT_BOUNDARY_STAGE = "prompt-boundary";
+    private static final String RESPONSE_POLICY_STAGE = "response-policy";
     private static final String PROMPT_BOUNDARY_CASE_ID = "specific-date-schedule";
     private static final String PROMPT_BOUNDARY_EXPECTED_VERSION = "ai-chat-v2";
     private static final String PROMPT_BOUNDARY_BASELINE_VERSION = "ai-chat-v1";
     private static final String PROMPT_BOUNDARY_BASELINE_COMMIT = "3c0c931";
     private static final int PROMPT_BOUNDARY_BASELINE_TOKENS = 715;
+    private static final String RESPONSE_POLICY_EXPECTED_VERSION = "ai-chat-v3";
+    private static final String RESPONSE_POLICY_BASELINE_VERSION = "ai-chat-v1";
+    private static final String RESPONSE_POLICY_BASELINE_COMMIT = "3c0c931";
+    private static final int RESPONSE_POLICY_BASELINE_PROMPT_TOKENS = 11_551;
+    private static final int RESPONSE_POLICY_BASELINE_COMPLETION_TOKENS = 2_407;
+    private static final int RESPONSE_POLICY_BASELINE_TOTAL_TOKENS = 13_958;
     private static final String DATASET_PATH = "ai-chatbot/evaluation-dataset-v1.json";
     private static final Path BASELINE_ARTIFACT_PATH = Path.of(
             "build", "ai-evaluation", "baseline-results.json"
     );
     private static final Path PROMPT_BOUNDARY_ARTIFACT_PATH = Path.of(
             "build", "ai-evaluation", "prompt-boundary-results.json"
+    );
+    private static final Path RESPONSE_POLICY_ARTIFACT_PATH = Path.of(
+            "build", "ai-evaluation", "response-policy-results.json"
     );
     private static final String EXPECTED_BASE_URL = "https://api.groq.com/openai";
     private static final String EXPECTED_MODEL = "openai/gpt-oss-120b";
@@ -180,6 +190,33 @@ class AIChatBaselineEvaluationTest {
                 assertThat(result.promptVersion()).isEqualTo(PROMPT_BOUNDARY_EXPECTED_VERSION);
             });
             printPromptBoundaryComparison(results.getFirst());
+        } finally {
+            writeArtifact(dataset, results, gitSnapshot);
+        }
+    }
+
+    @Test
+    @Tag("ai-response-policy")
+    void recordsResponsePolicyTokenUsageAndResponses(CapturedOutput output) throws Exception {
+        stage = RESPONSE_POLICY_STAGE;
+        artifactPath = RESPONSE_POLICY_ARTIFACT_PATH;
+        assertRealGroqConfigured();
+        GitSnapshot gitSnapshot = requireCleanGitSnapshot();
+        JsonNode dataset = loadDataset();
+        User user = createFixture(dataset.path("scheduleFixture"), stage);
+        List<EvaluationResult> results = new ArrayList<>();
+
+        try {
+            runIndependentQuestions(dataset, user, output, results);
+            runLongTermScenario(dataset, user, output, results);
+
+            assertThat(results).hasSize(12);
+            assertThat(results).allMatch(EvaluationResult::successful);
+            assertThat(results)
+                    .extracting(EvaluationResult::promptVersion)
+                    .containsOnly(RESPONSE_POLICY_EXPECTED_VERSION);
+            printSummaries(results);
+            printResponsePolicyComparison(results);
         } finally {
             writeArtifact(dataset, results, gitSnapshot);
         }
@@ -442,6 +479,43 @@ class AIChatBaselineEvaluationTest {
         );
     }
 
+    private void printResponsePolicyComparison(List<EvaluationResult> results) {
+        EvaluationSummary overall = summarize("overall", results);
+
+        printTokenComparison(
+                "promptTokens",
+                RESPONSE_POLICY_BASELINE_PROMPT_TOKENS,
+                overall.promptTokens()
+        );
+        printTokenComparison(
+                "completionTokens",
+                RESPONSE_POLICY_BASELINE_COMPLETION_TOKENS,
+                overall.completionTokens()
+        );
+        printTokenComparison(
+                "totalTokens",
+                RESPONSE_POLICY_BASELINE_TOTAL_TOKENS,
+                overall.totalTokens()
+        );
+    }
+
+    private void printTokenComparison(String metric, int baseline, int current) {
+        int delta = current - baseline;
+        double changePercent = delta * 100.0 / baseline;
+
+        System.out.printf(
+                Locale.ROOT,
+                "AI_EVAL_COMPARISON stage=%s metric=%s baseline=%d current=%d "
+                        + "delta=%+d changePercent=%+.2f%n",
+                stage,
+                metric,
+                baseline,
+                current,
+                delta,
+                changePercent
+        );
+    }
+
     private void printSummaries(List<EvaluationResult> results) {
         EvaluationSummary independent = summarize("independent", results);
         EvaluationSummary longTerm = summarize("long-term", results);
@@ -540,6 +614,14 @@ class AIChatBaselineEvaluationTest {
                     "promptVersion", PROMPT_BOUNDARY_BASELINE_VERSION,
                     "caseId", PROMPT_BOUNDARY_CASE_ID,
                     "promptTokens", PROMPT_BOUNDARY_BASELINE_TOKENS
+            ));
+        } else if (RESPONSE_POLICY_STAGE.equals(stage)) {
+            metadata.put("baselineReference", Map.of(
+                    "gitCommit", RESPONSE_POLICY_BASELINE_COMMIT,
+                    "promptVersion", RESPONSE_POLICY_BASELINE_VERSION,
+                    "promptTokens", RESPONSE_POLICY_BASELINE_PROMPT_TOKENS,
+                    "completionTokens", RESPONSE_POLICY_BASELINE_COMPLETION_TOKENS,
+                    "totalTokens", RESPONSE_POLICY_BASELINE_TOTAL_TOKENS
             ));
         }
 

@@ -110,7 +110,6 @@ clean {
     delete file(generated)
 }
 
-// querydsl 수동 빌드 task 정의
 // 실제 Groq API를 한 번 호출하는 스모크 테스트 전용 작업 (실제 비용 발생)
 // 기본 test 작업에서는 제외되며, 명시적으로만 실행한다: ./gradlew groqEvaluationTest
 tasks.register('groqEvaluationTest', Test) {
@@ -129,7 +128,6 @@ tasks.register('groqEvaluationTest', Test) {
 }
 
 // 실제 서비스 흐름으로 고정 평가셋 12건을 순차 실행하는 기준선 측정 작업 (실제 비용 발생)
-// 터미널 캡처가 필요하므로 사용자가 명시적으로만 실행한다: ./gradlew groqBaselineEvaluation --console=plain
 tasks.register('groqBaselineEvaluation', Test) {
     group = 'verification'
     description = '실제 Groq API와 AIChatMessageService를 사용해 기준선 평가 12건을 실행합니다.'
@@ -149,7 +147,6 @@ tasks.register('groqBaselineEvaluation', Test) {
 }
 
 // 프롬프트 역할 경계 변경의 입력 토큰 고정 비용을 독립 질문 1건으로 측정 (실제 비용 발생)
-// 터미널 캡처가 필요하므로 사용자가 명시적으로만 실행한다: ./gradlew groqPromptBoundaryEvaluation --console=plain
 tasks.register('groqPromptBoundaryEvaluation', Test) {
     group = 'verification'
     description = '실제 Groq API와 AIChatMessageService를 사용해 프롬프트 경계 변경 질문 1건을 실행합니다.'
@@ -168,6 +165,26 @@ tasks.register('groqPromptBoundaryEvaluation', Test) {
     outputs.upToDateWhen { false }
 }
 
+// 응답 근거 제한 규칙 적용 후 고정 평가셋 12건을 재측정 (실제 비용 발생)
+tasks.register('groqResponsePolicyEvaluation', Test) {
+    group = 'verification'
+    description = '실제 Groq API와 AIChatMessageService를 사용해 응답 근거 제한 규칙을 평가합니다.'
+
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+
+    useJUnitPlatform {
+        includeTags 'ai-response-policy'
+    }
+
+    testLogging {
+        showStandardStreams = true
+    }
+
+    outputs.upToDateWhen { false }
+}
+
+// querydsl 수동 빌드 task 정의
 tasks.register("compileQuerydsl", JavaCompile) {
     group = "build"
     description = "Generates the QueryDSL Q-types"
