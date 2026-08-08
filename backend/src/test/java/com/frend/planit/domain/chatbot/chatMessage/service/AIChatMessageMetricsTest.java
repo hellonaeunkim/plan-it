@@ -9,6 +9,7 @@ import com.frend.planit.domain.calendar.schedule.repository.ScheduleRepository;
 import com.frend.planit.domain.chatbot.chatMessage.dto.request.AIChatMessageRequest;
 import com.frend.planit.domain.chatbot.chatMessage.dto.response.AIChatMessageResponse;
 import com.frend.planit.domain.chatbot.chatMessage.entity.AIChatMessage;
+import com.frend.planit.domain.chatbot.chatMessage.prompt.AIChatPromptFactory;
 import com.frend.planit.domain.chatbot.chatMessage.repository.AIChatMessageRepository;
 import com.frend.planit.domain.chatbot.chatRoom.entity.AIChatRoomEntity;
 import com.frend.planit.domain.chatbot.chatRoom.repository.AIChatRoomRepository;
@@ -64,7 +65,8 @@ class AIChatMessageMetricsTest {
                 aiChatMessageRepository,
                 chatClient,
                 userRepository,
-                scheduleRepository
+                scheduleRepository,
+                new AIChatPromptFactory()
         );
 
         User user = User.builder()

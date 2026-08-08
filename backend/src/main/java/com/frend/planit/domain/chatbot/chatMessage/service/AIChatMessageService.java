@@ -5,23 +5,18 @@ import com.frend.planit.domain.calendar.schedule.repository.ScheduleRepository;
 import com.frend.planit.domain.chatbot.chatMessage.dto.request.AIChatMessageRequest;
 import com.frend.planit.domain.chatbot.chatMessage.dto.response.AIChatMessageResponse;
 import com.frend.planit.domain.chatbot.chatMessage.entity.AIChatMessage;
+import com.frend.planit.domain.chatbot.chatMessage.prompt.AIChatPromptFactory;
 import com.frend.planit.domain.chatbot.chatMessage.repository.AIChatMessageRepository;
 import com.frend.planit.domain.chatbot.chatRoom.entity.AIChatRoomEntity;
 import com.frend.planit.domain.chatbot.chatRoom.repository.AIChatRoomRepository;
-import com.frend.planit.domain.chatbot.chatbotUtils.AIUserContextHelper;
 import com.frend.planit.domain.user.entity.User;
 import com.frend.planit.domain.user.repository.UserRepository;
 import com.frend.planit.global.exception.ServiceException;
 import com.frend.planit.global.response.ErrorType;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.metadata.ChatResponseMetadata;
 import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatResponse;
@@ -43,6 +38,7 @@ public class AIChatMessageService {
     private final OpenAiChatModel chatClient;
     private final UserRepository userRepository;
     private final ScheduleRepository scheduleRepository;
+    private final AIChatPromptFactory promptFactory;
 
 
     @Transactional
@@ -62,24 +58,14 @@ public class AIChatMessageService {
         // 사용자 Schedule 조회
         List<ScheduleEntity> userSchedules = scheduleRepository.findAllByUserId(userId);
 
-        // 여행 일정 기반 시스템 메세지 컨텍스트 생성
-        String travelContext = AIUserContextHelper.buildUserTravelContext(userSchedules);
-
-        // 시스템 메세지 생성
-        List<Message> messages = new ArrayList<>();
-        messages.add(new SystemMessage(travelContext));
-
-        chatRoom
-                .getAIChatMessages()
-                .forEach(chatMessage -> {
-                    messages.add(new UserMessage(chatMessage.getUserMessage()));
-                    messages.add(new AssistantMessage(chatMessage.getBotMessage()));
-                });
-
-        messages.add(new UserMessage(request.getUserMessage()));
+        Prompt prompt = promptFactory.create(
+                userSchedules,
+                chatRoom.getAIChatMessages(),
+                request.getUserMessage()
+        );
 
         long llmStartedAt = System.nanoTime();
-        ChatResponse chatResponse = chatClient.call(new Prompt(messages));
+        ChatResponse chatResponse = chatClient.call(prompt);
         long llmDurationMs = elapsedMillis(llmStartedAt);
 
         String botMessage = chatResponse
