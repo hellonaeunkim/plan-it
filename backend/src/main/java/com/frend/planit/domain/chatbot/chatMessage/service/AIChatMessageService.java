@@ -31,8 +31,6 @@ import org.springframework.util.StringUtils;
 @Slf4j
 public class AIChatMessageService {
 
-    private static final String PROMPT_VERSION = "ai-chat-v1";
-
     private final AIChatRoomRepository aiChatRoomRepository;
     private final AIChatMessageRepository aiChatMessageRepository;
     private final OpenAiChatModel chatClient;
@@ -82,7 +80,7 @@ public class AIChatMessageService {
         } catch (RuntimeException e) {
             log.warn(
                     "event=ai_chat_response_metric_failed promptVersion={} errorType={}",
-                    PROMPT_VERSION,
+                    promptFactory.getPromptVersion(),
                     e.getClass().getSimpleName()
             );
         }
@@ -104,7 +102,7 @@ public class AIChatMessageService {
                 "event=ai_chat_response_metric promptVersion={} model={} usageAvailable={} "
                         + "promptTokens={} completionTokens={} totalTokens={} "
                         + "llmDurationMs={} serviceDurationMs={}",
-                PROMPT_VERSION,
+                promptFactory.getPromptVersion(),
                 model,
                 usageAvailable,
                 promptTokens,
