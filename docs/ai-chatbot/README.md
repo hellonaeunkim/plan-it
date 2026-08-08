@@ -8,8 +8,9 @@ AI 챗봇의 프롬프트·컨텍스트 설계와 단계별 평가 근거를 보
 ai-chatbot/
 ├── design/       구현 전 설계와 결정
 └── evaluation/
-    ├── guide.md  평가 실행 및 채점 기준
-    ├── reports/  사람이 검토한 단계별 결과
+    ├── guide.md   평가 실행 및 채점 기준
+    ├── summary.md 전체 리팩토링 결과 비교
+    ├── reports/   사람이 검토한 단계별 결과
     └── artifacts/ 평가 실행기가 생성한 JSON 원본
 ```
 
@@ -17,7 +18,8 @@ ai-chatbot/
 
 1. [프롬프트·컨텍스트·응답 설계](./design/prompt-context-response-design.md)
 2. [토큰·답변 품질 평가 가이드](./evaluation/guide.md)
-3. 단계별 평가 결과
+3. [1~7차 평가 종합 결과](./evaluation/summary.md)
+4. 단계별 평가 결과
    - [기준선](./evaluation/reports/baseline-3c0c931.md)
    - [정책과 사용자 컨텍스트 경계](./evaluation/reports/prompt-boundary-e66b0dd.md)
    - [응답 근거 제한 v3](./evaluation/reports/response-policy-539d293.md)
