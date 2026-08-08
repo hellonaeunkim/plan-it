@@ -120,7 +120,15 @@ AI_EVAL_COMPARISON stage=prompt-boundary case=specific-date-schedule promptVersi
 - `backend/build/ai-evaluation/*.json`: 가장 최근 실행 결과 확인용이며 Git에서 제외한다.
 - `docs/ai-chatbot/evaluation-results/{stage}-{gitCommit}.json`: 커밋별 공식 원본이며 Git에 포함한다.
 
-요청 실패, 결과 개수 불일치, 프롬프트 버전 불일치처럼 평가가 완료되지 않은 경우에는 부분 결과를 `build`에만 저장하고 공식 문서 경로에는 생성하지 않는다. 성공 후 출력되는 `AI_EVAL_TRACKED_ARTIFACT` 경로의 JSON을 검토하고 결과 문서와 함께 커밋한다.
+요청 실패, 결과 개수 불일치, 프롬프트 버전 불일치처럼 평가가 완료되지 않은 경우에는 부분 결과를 `build`에만 저장하고 공식 문서 경로에는 생성하지 않는다.
+
+평가가 성공하면 다음 순서로 결과 문서를 작성한다.
+
+1. 터미널에 출력된 `AI_EVAL_TRACKED_ARTIFACT` 경로의 JSON을 확인한다.
+2. JSON과 같은 디렉터리에 같은 파일명을 사용하는 Markdown 문서를 작성한다. 예를 들어 `schedule-scope-abc1234.json`의 결과 문서는 `schedule-scope-abc1234.md`로 만든다.
+3. Markdown에는 재현 조건, 비교 기준 대비 토큰 변화, 고정 루브릭 품질 채점, 결론, 측정 한계를 기록한다.
+4. 품질은 JSON의 질문과 응답 원문을 직접 검토해 `1`, `0`, `N/A`로 채점한다. 검토하지 않은 상태를 `미채점`으로 남긴 채 공식 결과로 커밋하지 않는다.
+5. JSON과 Markdown을 한 커밋에 함께 포함한다.
 
 JSON의 메타데이터, 토큰, 응답 원문은 자동으로 기록한다. 다음 품질 점수와 해석은 자동 판정하지 않고 고정 루브릭으로 확인한 뒤 Markdown 결과 문서에 수동 기록한다.
 
