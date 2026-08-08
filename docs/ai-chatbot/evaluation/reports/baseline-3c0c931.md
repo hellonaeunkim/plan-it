@@ -4,7 +4,7 @@
 
 현재 구현인 `전체 일정 + 전체 대화` 방식의 토큰 사용량과 답변 품질을 측정한다. 이 문서에는 측정으로 확인한 사실만 기록하며, 이후 적용할 개선 방법이나 예상 결과를 미리 결론 내리지 않는다.
 
-공식 원본 결과는 [baseline-3c0c931.json](./evaluation-results/baseline-3c0c931.json)에 보존한다. 이 Markdown은 원본 수치와 답변을 사람이 검토하기 쉽게 요약한 문서다.
+공식 원본 결과는 [baseline-3c0c931.json](../artifacts/baseline-3c0c931.json)에 보존한다. 이 Markdown은 원본 수치와 답변을 사람이 검토하기 쉽게 요약한 문서다.
 
 ## 2. 재현 조건
 

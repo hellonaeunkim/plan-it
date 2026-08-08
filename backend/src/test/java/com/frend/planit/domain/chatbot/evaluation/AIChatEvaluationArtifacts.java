@@ -17,7 +17,7 @@ import java.util.Map;
 final class AIChatEvaluationArtifacts {
 
     static final Path TRACKED_ARTIFACT_DIRECTORY = Path.of(
-            "..", "docs", "ai-chatbot", "evaluation-results"
+            "..", "docs", "ai-chatbot", "evaluation", "artifacts"
     );
 
     private static final String OVERALL_GROUP = "overall";

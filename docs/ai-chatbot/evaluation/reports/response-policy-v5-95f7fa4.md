@@ -4,7 +4,7 @@
 
 `ai-chat-v4`는 근거 없는 방문 가능 여부 단정을 제거했지만, 판단에 필요한 기존 일정과 부족한 정보를 함께 알려주지 않았다. `ai-chat-v5`에서는 판단할 수 없다는 결론 전에 관련 일정의 시작 시간과 부족한 정보를 안내하도록 보완하고, 고정 평가셋 12건으로 토큰과 답변 품질을 다시 확인한다.
 
-공식 원본 결과는 평가 실행기가 자동 생성한 [response-policy-v5-95f7fa4.json](./evaluation-results/response-policy-v5-95f7fa4.json)에 보존한다.
+공식 원본 결과는 평가 실행기가 자동 생성한 [response-policy-v5-95f7fa4.json](../artifacts/response-policy-v5-95f7fa4.json)에 보존한다.
 
 ## 2. 변경 내용
 

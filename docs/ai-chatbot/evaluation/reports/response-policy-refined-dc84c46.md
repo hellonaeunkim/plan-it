@@ -4,7 +4,7 @@
 
 `ai-chat-v3`에서 일반적인 추측 금지 규칙을 적용했지만, 모델이 두 일정의 방문 시작 시간 차이를 여유 시간으로 해석하고 방문 가능 여부를 단정했다. `ai-chat-v4`에서는 일정 데이터의 의미와 선호 전달 메시지의 응답 방식을 구체화하고, 고정 평가셋 12건으로 토큰과 답변 품질을 다시 확인한다.
 
-공식 원본 결과는 평가 실행기가 자동 생성한 [response-policy-refined-dc84c46.json](./evaluation-results/response-policy-refined-dc84c46.json)에 보존한다.
+공식 원본 결과는 평가 실행기가 자동 생성한 [response-policy-refined-dc84c46.json](../artifacts/response-policy-refined-dc84c46.json)에 보존한다.
 
 ## 2. 변경 내용
 

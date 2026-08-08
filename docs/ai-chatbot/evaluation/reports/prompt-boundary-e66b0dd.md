@@ -6,7 +6,7 @@
 
 이번 측정은 토큰 절감 효과를 주장하기 위한 평가가 아니다. 정책·데이터 책임 분리와 컨텍스트 인젝션 방어에 필요한 고정 비용을 먼저 분리 측정해, 이후 일정 범위 제한과 최근 대화 윈도우의 절감량에 섞이지 않게 하는 것이 목적이다.
 
-공식 원본 결과는 [prompt-boundary-e66b0dd.json](./evaluation-results/prompt-boundary-e66b0dd.json)에 보존한다.
+공식 원본 결과는 [prompt-boundary-e66b0dd.json](../artifacts/prompt-boundary-e66b0dd.json)에 보존한다.
 
 ## 2. 변경 내용
 

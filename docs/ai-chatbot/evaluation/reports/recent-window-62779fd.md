@@ -1,6 +1,6 @@
 # AI 최근 3턴 대화 윈도우 평가 결과
 
-공식 원본: [recent-window-62779fd.json](./recent-window-62779fd.json)
+공식 원본: [recent-window-62779fd.json](../artifacts/recent-window-62779fd.json)
 
 ## 1. 재현 조건
 

@@ -1,6 +1,6 @@
 # AI 일정 범위 제한 평가 결과
 
-공식 원본: [schedule-scope-fc6916b.json](./schedule-scope-fc6916b.json)
+공식 원본: [schedule-scope-fc6916b.json](../artifacts/schedule-scope-fc6916b.json)
 
 ## 1. 재현 조건
 
