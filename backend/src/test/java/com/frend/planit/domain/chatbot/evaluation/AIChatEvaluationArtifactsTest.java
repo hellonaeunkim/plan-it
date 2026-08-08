@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.frend.planit.domain.chatbot.evaluation.AIChatEvaluationArtifacts.CaseBaseline;
 import com.frend.planit.domain.chatbot.evaluation.AIChatEvaluationArtifacts.OverallBaseline;
 import org.junit.jupiter.api.Test;
@@ -64,5 +65,85 @@ class AIChatEvaluationArtifactsTest {
         ))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("비교 기준 파일에 질문 결과가 없습니다");
+    }
+
+    @Test
+    void failsWhenRequiredOverallTokenIsMissing() {
+        ObjectNode artifact = validOverallArtifact();
+        ((ObjectNode) artifact.path("summaries").get(0)).remove("promptTokens");
+
+        assertThatThrownBy(() -> AIChatEvaluationArtifacts.parseOverallBaseline(
+                artifact,
+                "missing-token.json"
+        ))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("promptTokens 값은 양의 정수여야 합니다");
+    }
+
+    @Test
+    void failsWhenPromptVersionIsBlank() {
+        ObjectNode artifact = validOverallArtifact();
+        ((ObjectNode) artifact.path("metadata")).put("promptVersion", "");
+
+        assertThatThrownBy(() -> AIChatEvaluationArtifacts.parseOverallBaseline(
+                artifact,
+                "blank-version.json"
+        ))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("promptVersion 문자열이 없습니다");
+    }
+
+    @Test
+    void failsWhenTotalTokensDoesNotMatchTokenSum() {
+        ObjectNode artifact = validOverallArtifact();
+        ((ObjectNode) artifact.path("summaries").get(0)).put("totalTokens", 130);
+
+        assertThatThrownBy(() -> AIChatEvaluationArtifacts.parseOverallBaseline(
+                artifact,
+                "invalid-total.json"
+        ))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("totalTokens가 promptTokens와 completionTokens의 합과 다릅니다");
+    }
+
+    @Test
+    void failsWhenMetadataAndCasePromptVersionsDiffer() {
+        ObjectNode artifact = validCaseArtifact();
+        ((ObjectNode) artifact.path("results").get(0)).put("promptVersion", "ai-chat-v2");
+
+        assertThatThrownBy(() -> AIChatEvaluationArtifacts.parseCaseBaseline(
+                artifact,
+                "mismatched-version.json",
+                "question-1"
+        ))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("metadata와 질문 결과의 promptVersion이 다릅니다");
+    }
+
+    private ObjectNode validOverallArtifact() {
+        ObjectNode artifact = objectMapper.createObjectNode();
+        artifact.putObject("metadata")
+                .put("gitCommit", "abc1234")
+                .put("promptVersion", "ai-chat-test");
+        artifact.putArray("summaries")
+                .addObject()
+                .put("group", "overall")
+                .put("promptTokens", 100)
+                .put("completionTokens", 20)
+                .put("totalTokens", 120);
+        return artifact;
+    }
+
+    private ObjectNode validCaseArtifact() {
+        ObjectNode artifact = objectMapper.createObjectNode();
+        artifact.putObject("metadata")
+                .put("gitCommit", "abc1234")
+                .put("promptVersion", "ai-chat-v1");
+        artifact.putArray("results")
+                .addObject()
+                .put("caseId", "question-1")
+                .put("promptVersion", "ai-chat-v1")
+                .put("promptTokens", 100);
+        return artifact;
     }
 }

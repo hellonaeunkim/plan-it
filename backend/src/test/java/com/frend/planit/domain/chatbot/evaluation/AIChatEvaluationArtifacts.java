@@ -28,16 +28,28 @@ final class AIChatEvaluationArtifacts {
     static OverallBaseline loadOverallBaseline(ObjectMapper objectMapper, String artifactFileName)
             throws IOException {
         JsonNode artifact = readArtifact(objectMapper, artifactFileName);
+        return parseOverallBaseline(artifact, artifactFileName);
+    }
+
+    static OverallBaseline parseOverallBaseline(JsonNode artifact, String artifactFileName) {
         JsonNode metadata = artifact.path("metadata");
         JsonNode summary = findOverallSummary(artifact, artifactFileName);
+        int promptTokens = requiredPositiveInt(summary, "promptTokens", artifactFileName);
+        int completionTokens = requiredPositiveInt(
+                summary,
+                "completionTokens",
+                artifactFileName
+        );
+        int totalTokens = requiredPositiveInt(summary, "totalTokens", artifactFileName);
+        requireTokenSum(promptTokens, completionTokens, totalTokens, artifactFileName);
 
         return new OverallBaseline(
                 artifactFileName,
-                metadata.path("gitCommit").asText(),
-                metadata.path("promptVersion").asText(),
-                summary.path("promptTokens").asInt(),
-                summary.path("completionTokens").asInt(),
-                summary.path("totalTokens").asInt()
+                requiredText(metadata, "gitCommit", artifactFileName),
+                requiredText(metadata, "promptVersion", artifactFileName),
+                promptTokens,
+                completionTokens,
+                totalTokens
         );
     }
     
@@ -47,15 +59,35 @@ final class AIChatEvaluationArtifacts {
             String caseId
     ) throws IOException {
         JsonNode artifact = readArtifact(objectMapper, artifactFileName);
+        return parseCaseBaseline(artifact, artifactFileName, caseId);
+    }
+
+    static CaseBaseline parseCaseBaseline(
+            JsonNode artifact,
+            String artifactFileName,
+            String caseId
+    ) {
         JsonNode metadata = artifact.path("metadata");
         JsonNode result = findCaseResult(artifact, artifactFileName, caseId);
+        String metadataPromptVersion = requiredText(
+                metadata,
+                "promptVersion",
+                artifactFileName
+        );
+        String resultPromptVersion = requiredText(result, "promptVersion", artifactFileName);
+        if (!metadataPromptVersion.equals(resultPromptVersion)) {
+            throw invalidArtifact(
+                    artifactFileName,
+                    "metadata와 질문 결과의 promptVersion이 다릅니다"
+            );
+        }
 
         return new CaseBaseline(
                 artifactFileName,
-                metadata.path("gitCommit").asText(),
-                result.path("promptVersion").asText(),
+                requiredText(metadata, "gitCommit", artifactFileName),
+                resultPromptVersion,
                 caseId,
-                result.path("promptTokens").asInt()
+                requiredPositiveInt(result, "promptTokens", artifactFileName)
         );
     }
 
@@ -93,6 +125,51 @@ final class AIChatEvaluationArtifacts {
         }
         throw new IllegalStateException(
                 "비교 기준 파일에 질문 결과가 없습니다: " + artifactFileName + " caseId=" + caseId
+        );
+    }
+
+    private static String requiredText(
+            JsonNode parent,
+            String fieldName,
+            String artifactFileName
+    ) {
+        JsonNode value = parent.get(fieldName);
+        if (value == null || !value.isTextual() || value.asText().isBlank()) {
+            throw invalidArtifact(artifactFileName, fieldName + " 문자열이 없습니다");
+        }
+        return value.asText();
+    }
+
+    private static int requiredPositiveInt(
+            JsonNode parent,
+            String fieldName,
+            String artifactFileName
+    ) {
+        JsonNode value = parent.get(fieldName);
+        if (value == null || !value.isIntegralNumber() || !value.canConvertToInt()
+                || value.asInt() <= 0) {
+            throw invalidArtifact(artifactFileName, fieldName + " 값은 양의 정수여야 합니다");
+        }
+        return value.asInt();
+    }
+
+    private static void requireTokenSum(
+            int promptTokens,
+            int completionTokens,
+            int totalTokens,
+            String artifactFileName
+    ) {
+        if (promptTokens + completionTokens != totalTokens) {
+            throw invalidArtifact(
+                    artifactFileName,
+                    "totalTokens가 promptTokens와 completionTokens의 합과 다릅니다"
+            );
+        }
+    }
+
+    private static IllegalStateException invalidArtifact(String artifactFileName, String reason) {
+        return new IllegalStateException(
+                "비교 기준 평가 결과가 올바르지 않습니다: " + artifactFileName + " (" + reason + ")"
         );
     }
 
