@@ -30,8 +30,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -44,9 +46,13 @@ import org.mockito.Mockito;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.util.StringUtils;
@@ -66,7 +72,15 @@ import org.springframework.util.StringUtils;
         "spring.mail.password=test"
 })
 @ActiveProfiles({"test", "external-ai"})
+@Import(AIChatBaselineEvaluationTest.EvaluationTimeConfig.class)
 class AIChatBaselineEvaluationTest {
+
+    private static final LocalDate EVALUATION_DATE = LocalDate.of(2026, 8, 8);
+    private static final ZoneId EVALUATION_ZONE = ZoneId.of("Asia/Seoul");
+    private static final Clock EVALUATION_CLOCK = Clock.fixed(
+            EVALUATION_DATE.atStartOfDay(EVALUATION_ZONE).toInstant(),
+            EVALUATION_ZONE
+    );
 
     private static final String BASELINE_STAGE = "baseline";
     private static final String BASELINE_EXPECTED_VERSION = "ai-chat-v1";
@@ -140,6 +154,16 @@ class AIChatBaselineEvaluationTest {
     private String stage;
     private Path artifactPath;
     private Map<String, Object> baselineMetadata;
+
+    @TestConfiguration
+    static class EvaluationTimeConfig {
+
+        @Bean
+        @Primary
+        Clock evaluationClock() {
+            return EVALUATION_CLOCK;
+        }
+    }
 
     @Test
     @Tag("ai-baseline")
@@ -444,7 +468,11 @@ class AIChatBaselineEvaluationTest {
     private JsonNode loadDataset() throws IOException {
         try (InputStream input = getClass().getClassLoader().getResourceAsStream(DATASET_PATH)) {
             assertThat(input).as("평가 데이터 파일이 존재해야 한다").isNotNull();
-            return objectMapper.readTree(input);
+            JsonNode dataset = objectMapper.readTree(input);
+            assertThat(LocalDate.parse(dataset.path("evaluationDate").asText()))
+                    .as("평가 데이터셋의 기준일이 고정 Clock과 일치해야 한다")
+                    .isEqualTo(EVALUATION_DATE);
+            return dataset;
         }
     }
 
