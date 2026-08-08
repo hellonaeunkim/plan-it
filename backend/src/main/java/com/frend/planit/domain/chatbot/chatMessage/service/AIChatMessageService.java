@@ -2,32 +2,39 @@ package com.frend.planit.domain.chatbot.chatMessage.service;
 
 import com.frend.planit.domain.calendar.schedule.entity.ScheduleEntity;
 import com.frend.planit.domain.calendar.schedule.repository.ScheduleRepository;
+import com.frend.planit.domain.chatbot.chatMessage.config.AIChatContextProperties;
 import com.frend.planit.domain.chatbot.chatMessage.dto.request.AIChatMessageRequest;
 import com.frend.planit.domain.chatbot.chatMessage.dto.response.AIChatMessageResponse;
 import com.frend.planit.domain.chatbot.chatMessage.entity.AIChatMessage;
+import com.frend.planit.domain.chatbot.chatMessage.prompt.AIChatPromptFactory;
 import com.frend.planit.domain.chatbot.chatMessage.repository.AIChatMessageRepository;
 import com.frend.planit.domain.chatbot.chatRoom.entity.AIChatRoomEntity;
 import com.frend.planit.domain.chatbot.chatRoom.repository.AIChatRoomRepository;
-import com.frend.planit.domain.chatbot.chatRoom.service.AIChatRoomService;
-import com.frend.planit.domain.chatbot.chatbotUtils.AIUserContextHelper;
 import com.frend.planit.domain.user.entity.User;
 import com.frend.planit.domain.user.repository.UserRepository;
 import com.frend.planit.global.exception.ServiceException;
 import com.frend.planit.global.response.ErrorType;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.UserMessage;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.metadata.ChatResponseMetadata;
+import org.springframework.ai.chat.metadata.Usage;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AIChatMessageService {
 
     private final AIChatRoomRepository aiChatRoomRepository;
@@ -35,13 +42,16 @@ public class AIChatMessageService {
     private final OpenAiChatModel chatClient;
     private final UserRepository userRepository;
     private final ScheduleRepository scheduleRepository;
-
+    private final AIChatPromptFactory promptFactory;
+    private final AIChatContextProperties contextProperties;
+    private final Clock aiChatClock;
 
     @Transactional
     public AIChatMessageResponse createMessages(
             Long userId,
             Long chatRoomId,
             AIChatMessageRequest request) {
+        long requestStartedAt = System.nanoTime();
 
         // 로그인 인증 사용자 여부 확인
         checkUser(userId);
@@ -50,26 +60,35 @@ public class AIChatMessageService {
         AIChatRoomEntity chatRoom = aiChatRoomRepository.findByIdAndUserId(chatRoomId, userId)
                 .orElseThrow(() -> new ServiceException(ErrorType.AI_CHAT_ROOM_NOT_FOUND));
 
-        // 사용자 Schedule 조회
-        List<ScheduleEntity> userSchedules = scheduleRepository.findAllByUserId(userId);
+        // 진행 중이거나 가까운 사용자 Schedule 조회
+        LocalDate today = LocalDate.now(aiChatClock);
+        LocalDate scheduleRangeEnd = today.plusDays(contextProperties.getScheduleLookAheadDays());
+        List<ScheduleEntity> userSchedules = scheduleRepository.findForAIContext(
+                userId,
+                today,
+                scheduleRangeEnd,
+                PageRequest.of(0, contextProperties.getMaxSchedules())
+        );
 
-        // 여행 일정 기반 시스템 메세지 컨텍스트 생성
-        String travelContext = AIUserContextHelper.buildUserTravelContext(userSchedules);
+        List<AIChatMessage> recentChatMessages = new ArrayList<>(
+                aiChatMessageRepository.findRecentByChatRoomId(
+                        chatRoomId,
+                        PageRequest.of(0, contextProperties.getMaxRecentTurns())
+                )
+        );
+        Collections.reverse(recentChatMessages);
 
-        // 시스템 메세지 생성
-        List<Message> messages = new ArrayList<>();
-        messages.add(new SystemMessage(travelContext));
+        Prompt prompt = promptFactory.create(
+                userSchedules,
+                recentChatMessages,
+                request.getUserMessage()
+        );
 
-        chatRoom
-                .getAIChatMessages()
-                .forEach(chatMessage -> {
-                    messages.add(new UserMessage(chatMessage.getUserMessage()));
-                    messages.add(new AssistantMessage(chatMessage.getBotMessage()));
-                });
+        long llmStartedAt = System.nanoTime();
+        ChatResponse chatResponse = chatClient.call(prompt);
+        long llmDurationMs = elapsedMillis(llmStartedAt);
 
-        messages.add(new UserMessage(request.getUserMessage()));
-
-        String botMessage = chatClient.call(new Prompt(messages))
+        String botMessage = chatResponse
                 .getResult()
                 .getOutput()
                 .getText();
@@ -78,7 +97,50 @@ public class AIChatMessageService {
         AIChatMessage message = chatRoom.addChatMessage(request.getUserMessage(), botMessage);
         AIChatMessage savedMessage = aiChatMessageRepository.save(message);
 
+        try {
+            logMetrics(chatResponse, llmDurationMs, elapsedMillis(requestStartedAt));
+        } catch (RuntimeException e) {
+            log.warn(
+                    "event=ai_chat_response_metric_failed promptVersion={} errorType={}",
+                    promptFactory.getPromptVersion(),
+                    e.getClass().getSimpleName()
+            );
+        }
+
         return AIChatMessageResponse.from(savedMessage);
+    }
+
+    private void logMetrics(ChatResponse chatResponse, long llmDurationMs, long serviceDurationMs) {
+        ChatResponseMetadata metadata = chatResponse.getMetadata();
+        Usage usage = metadata.getUsage();
+
+        int promptTokens = tokenCount(usage.getPromptTokens());
+        int completionTokens = tokenCount(usage.getCompletionTokens());
+        int totalTokens = tokenCount(usage.getTotalTokens());
+        boolean usageAvailable = totalTokens > 0;
+        String model = StringUtils.hasText(metadata.getModel()) ? metadata.getModel() : "unknown";
+
+        log.info(
+                "event=ai_chat_response_metric promptVersion={} model={} usageAvailable={} "
+                        + "promptTokens={} completionTokens={} totalTokens={} "
+                        + "llmDurationMs={} serviceDurationMs={}",
+                promptFactory.getPromptVersion(),
+                model,
+                usageAvailable,
+                promptTokens,
+                completionTokens,
+                totalTokens,
+                llmDurationMs,
+                serviceDurationMs
+        );
+    }
+
+    private int tokenCount(Integer tokens) {
+        return tokens == null ? 0 : tokens;
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
     }
 
     // 사용자 조회

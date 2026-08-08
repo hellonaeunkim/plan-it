@@ -1,0 +1,170 @@
+# AI 챗봇 토큰·답변 품질 평가 가이드
+
+## 1. 목적
+
+이 가이드는 현재 AI 챗봇의 토큰 사용량과 답변 품질을 동일한 조건으로 반복 측정하기 위한 실행 절차를 정의한다.
+
+평가 데이터의 기준 파일은 `backend/src/test/resources/ai-chatbot/evaluation-dataset-v1.json`이다. 질문이나 일정 데이터를 변경하면 기존 결과와 직접 비교하지 않고 데이터셋 버전을 올린다.
+
+이 파일에는 측정 전에 고정해야 할 입력과 채점 기준만 작성한다. 어떤 방식이 더 좋거나 나쁘다는 결론은 미리 기록하지 않으며, 실제 실행 결과와 트러블슈팅 결론은 별도의 결과 문서에 작성한다.
+
+## 2. 현재 평가 대상
+
+| 구분 | 전달하는 컨텍스트 | 확인할 내용 |
+| --- | --- | --- |
+| 현재 구현 (`ai-chat-v7`) | 기준일부터 180일 이내 최대 3개 일정 + 최근 3턴 | 토큰·시간·답변 품질·범위 밖 사용자 정보 반영 여부 |
+
+이전 구현과 단계별 측정 결과는 [종합 결과](./summary.md)와 [단계별 보고서](./reports)에서 확인한다. 이후 구현을 변경할 때도 현재 결과를 비교 기준으로 고정하고, 변경 사항과 측정 결과를 별도 결과 파일로 추가한다.
+
+## 3. 실행 전 고정 조건
+
+다음 조건이 달라지면 같은 실험 결과로 비교하지 않는다.
+
+- 모델: `openai/gpt-oss-120b`
+- 프롬프트 버전
+- 모델 옵션
+- 평가 데이터셋 버전: `ai-chat-eval-v1`
+- 일정 fixture
+- 질문 문장과 실행 순서
+
+측정 날짜와 실행한 Git 커밋 해시도 결과에 기록한다.
+
+## 4. 실행 방법
+
+### 4.1 독립 질문 6개
+
+각 질문은 이전 질문의 영향을 받지 않도록 새로운 채팅방에서 실행한다. 여기서 새로운 채팅방은 사용자와 일정 데이터를 새로 만든다는 뜻이 아니라, 대화 이력이 비어 있는 별도의 채팅방을 질문마다 하나씩 만든다는 뜻이다.
+
+예를 들어 첫 번째 질문은 채팅방 A, 두 번째 질문은 채팅방 B에서 실행한다. 두 채팅방은 동일한 사용자와 일정 fixture를 사용하지만 서로의 대화 메시지는 공유하지 않는다. 따라서 두 번째 질문의 토큰과 답변에 첫 번째 질문·답변이 섞이지 않는다.
+
+1. 평가 데이터의 일정 3개를 동일한 사용자에게 등록한다.
+2. 빈 채팅방을 생성한다.
+3. `independentQuestions`의 질문 하나를 전송한다.
+4. `ai_chat_response_metric` 로그와 실제 답변을 저장한다.
+5. 채점 기준에 따라 답변을 평가한다.
+6. 다음 질문은 새로운 빈 채팅방에서 반복한다.
+
+### 4.2 장기 사용자 정보 시나리오
+
+장기 사용자 정보 시나리오는 하나의 채팅방에서 아래 순서대로 실행한다.
+
+1. `preferenceTurn.userMessage`를 전송한다.
+2. `fillerTurns`를 순서대로 전송한다.
+3. `finalQuestion`을 전송한다.
+4. 각 질문에 대한 `ai_chat_response_metric` 로그와 실제 답변을 저장한다.
+5. 최종 답변이 `requiredBehavior`를 만족하는지 확인한다.
+
+사용자 제약 발화 뒤에 네 개의 다른 대화를 이어간 후 최종 질문을 전송한다. 이를 통해 오래전에 제공한 사용자 정보가 현재 답변에 반영되는지 확인한다. 평가 전에는 반영 여부를 미리 결론 내리지 않는다.
+
+이 시나리오는 동일한 채팅방에서 실행되므로 각 턴의 `promptTokens`를 모두 기록한다. 이를 통해 대화가 한 턴씩 쌓일 때 입력 토큰이 실제로 어떻게 변하는지 확인한다.
+
+| 턴 | 질문 구분 | promptTokens | 이전 턴 대비 증가량 | 최종 사용자 정보 반영 여부 | 비고 |
+| ---: | --- | ---: | ---: | --- | --- |
+| 1 | 사용자 제약 |  | - | - |  |
+| 2~5 | 중간 질문 |  |  | - | 질문별로 한 행씩 기록 |
+| 6 | 최종 확인 질문 |  |  |  |  |
+
+```text
+이전 턴 대비 증가량 = 현재 턴 promptTokens - 직전 턴 promptTokens
+```
+
+### 4.3 프롬프트 경계 변경 1회 측정
+
+시스템 정책과 사용자 컨텍스트의 경계만 변경한 뒤에는 전체 평가셋을 실행하지 않는다. 공식 기준선에서 `promptTokens=715`였던 `specific-date-schedule` 질문 한 건만 같은 fixture와 새 채팅방에서 실행해, 경계 표시 문구가 추가하거나 제거한 입력 토큰의 고정 비용을 확인한다.
+
+```bash
+cd backend
+./gradlew groqPromptBoundaryEvaluation --console=plain
+```
+
+이 작업은 실제 Groq API를 한 번 호출하므로 기본 `./gradlew test`에서는 실행되지 않는다. 실행 전에 변경 사항을 커밋해 작업 트리를 깨끗하게 만들고, 터미널에서 다음 한 줄을 캡처한다.
+
+```text
+AI_EVAL_COMPARISON stage=prompt-boundary case=specific-date-schedule promptVersion=ai-chat-v2 baselinePromptTokens=715 currentPromptTokens=... deltaPromptTokens=... changePercent=...
+```
+
+이 결과는 고정 fixture 한 건에서 프롬프트 경계 문구의 입력 토큰 변화만 설명한다. 전체 질문의 평균 토큰 변화나 답변 품질 유지 근거로 사용하지 않는다. 원문 답변과 전체 메트릭은 `backend/build/ai-evaluation/prompt-boundary-results.json`에 기록한다.
+
+### 4.4 현재 구현 전체 평가
+
+현재 `ai-chat-v7`의 제한된 일정과 최근 3턴 컨텍스트를 전체 평가셋 12개 요청으로 실행한다.
+
+```bash
+cd backend
+./gradlew groqRecentWindowEvaluation --console=plain
+```
+
+이 작업은 실제 Groq API를 12번 호출하므로 기본 `./gradlew test`에서는 실행되지 않는다. 실행 전에 변경 사항을 커밋해 작업 트리를 깨끗하게 만들고, 다음 로그를 캡처한다.
+
+```text
+AI_EVAL_SUMMARY stage=recent-window ...
+AI_EVAL_BASELINE stage=recent-window ...
+AI_EVAL_COMPARISON stage=recent-window ...
+AI_EVAL_TRACKED_ARTIFACT path=...
+```
+
+토큰 비교와 함께 JSON의 질문별 응답을 고정 루브릭으로 검토한다. 최근 3턴 밖의 사용자 정보는 최종 답변에 반영되는지 별도로 기록한다.
+
+## 5. 기록할 수치
+
+현재 컨텍스트의 토큰 사용량을 확인하는 주 지표는 애플리케이션이 직접 제어하는 `promptTokens`로 한다. AI 답변 길이에 따라 달라지는 `completionTokens`와 `totalTokens`는 보조 지표로 함께 기록한다.
+
+- `promptTokens`: 입력 프롬프트 토큰
+- `completionTokens`: AI가 생성한 답변 토큰
+- `totalTokens`: 입력과 출력 토큰의 합계
+- `llmDurationMs`: 외부 LLM 호출 시간
+- `serviceDurationMs`: 서비스 메서드 내부 처리 시간
+
+`serviceDurationMs`는 HTTP 왕복 시간, 사용자 체감 시간, TTFT를 의미하지 않는다. SSE 도입 효과는 별도의 클라이언트 기준 TTFT 측정으로 검증한다.
+
+## 6. 품질 채점
+
+각 항목을 충족하면 1점, 충족하지 않으면 0점을 기록한다.
+
+질문에 해당 조건 자체가 없어 평가할 수 없는 항목은 `N/A`로 기록하고 점수 분모에서 제외한다. 예를 들어 이전 대화가 없는 독립 질문에서는 `대화 문맥 유지`를 `N/A`로 처리한다. 최종 점수는 고정된 5점 만점이 아니라 `충족 항목 수 / 적용 가능한 항목 수`로 기록한다.
+
+| 항목 | 확인 내용 |
+| --- | --- |
+| 일정 사실 일치 | 날짜·장소·시간이 fixture와 일치하는가 |
+| 사용자 선호와 제약 반영 | 음식·예산·시간 등의 조건을 반영했는가 |
+| 대화 문맥 유지 | 이전 발화의 중요한 정보를 유지했는가 |
+| 질문과 같은 언어 사용 | 한국어·영어 등 질문 언어와 일치하는가 |
+| 근거 없는 정보 생성 방지 | 일정에 없는 내용을 확정적으로 만들지 않았는가 |
+
+이후 다른 구현과 비교할 때 토큰 수치가 낮아져도 `requiredFacts`를 누락하거나 `forbiddenClaims`를 위반하면 더 나은 결과로 판단하지 않는다.
+
+## 7. 결과 기록 양식
+
+외부 AI 평가가 모든 요청과 프롬프트 버전 검증을 통과하면 실행기가 다음 두 위치에 JSON을 저장한다.
+
+- `backend/build/ai-evaluation/*.json`: 가장 최근 실행 결과 확인용이며 Git에서 제외한다.
+- `docs/ai-chatbot/evaluation/artifacts/{stage}-{gitCommit}.json`: 커밋별 공식 원본이며 Git에 포함한다.
+
+요청 실패, 결과 개수 불일치, 프롬프트 버전 불일치처럼 평가가 완료되지 않은 경우에는 부분 결과를 `build`에만 저장하고 공식 문서 경로에는 생성하지 않는다.
+
+평가가 성공하면 다음 순서로 결과 문서를 작성한다.
+
+1. 터미널에 출력된 `AI_EVAL_TRACKED_ARTIFACT` 경로의 JSON을 확인한다.
+2. `docs/ai-chatbot/evaluation/reports`에 JSON과 같은 파일명을 사용하는 Markdown 문서를 작성한다. 예를 들어 `artifacts/schedule-scope-abc1234.json`의 결과 문서는 `reports/schedule-scope-abc1234.md`로 만든다.
+3. Markdown에는 재현 조건, 비교 기준 대비 토큰 변화, 고정 루브릭 품질 채점, 결론, 측정 한계를 기록한다.
+4. 품질은 JSON의 질문과 응답 원문을 직접 검토해 `1`, `0`, `N/A`로 채점한다. 검토하지 않은 상태를 `미채점`으로 남긴 채 공식 결과로 커밋하지 않는다.
+5. JSON과 Markdown을 한 커밋에 함께 포함한다.
+
+JSON의 메타데이터, 토큰, 응답 원문은 자동으로 기록한다. 다음 품질 점수와 해석은 자동 판정하지 않고 고정 루브릭으로 확인한 뒤 Markdown 결과 문서에 수동 기록한다.
+
+| 측정 날짜 | Git 커밋 | 질문 ID | promptTokens | completionTokens | totalTokens | llmDurationMs | serviceDurationMs | 품질 점수(충족/적용) | 비고 |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+|  |  |  |  |  |  |  |  |  |  |
+
+질문별 원문 답변도 함께 보관해 숫자만으로 품질을 판단하지 않는다.
+
+## 8. 결과 집계
+
+독립 질문 6개, 장기 대화 6턴, 전체 12개 요청을 각각 집계한다. 이후 다른 구현 방법을 적용했다면 동일한 데이터셋으로 다시 측정한 뒤 별도 결과 문서에서 차이를 계산한다.
+
+```text
+입력 토큰 합계 = 독립 질문 6개의 promptTokens 합계
+평균 입력 토큰 = 입력 토큰 합계 / 실행한 질문 수
+장기 대화 입력 증가율 = (마지막 턴 promptTokens - 첫 턴 promptTokens) / 첫 턴 promptTokens * 100
+전체 토큰 = 전체 12개 요청의 promptTokens + completionTokens
+```

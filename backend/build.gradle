@@ -77,7 +77,9 @@ dependencies {
 
 
     test {
-        useJUnitPlatform()
+        useJUnitPlatform {
+            excludeTags 'external-ai'
+        }
     }
 
     // 비동기 코드 테스트 라이브러리
@@ -106,6 +108,118 @@ sourceSets {
 // gradle clean 시에 QClass 디렉토리 삭제
 clean {
     delete file(generated)
+}
+
+// 실제 Groq API를 한 번 호출하는 스모크 테스트 전용 작업 (실제 비용 발생)
+// 기본 test 작업에서는 제외되며, 명시적으로만 실행한다: ./gradlew groqEvaluationTest
+tasks.register('groqEvaluationTest', Test) {
+    group = 'verification'
+    description = '실제 Groq API를 한 번 호출하는 스모크 테스트만 실행합니다.'
+
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+
+    useJUnitPlatform {
+        includeTags 'ai-smoke'
+    }
+
+    // 캐시된 이전 성공 결과로 실제 호출 없이 넘어가지 않도록 매번 재실행
+    outputs.upToDateWhen { false }
+}
+
+// 실제 서비스 흐름으로 고정 평가셋 12건을 순차 실행하는 기준선 측정 작업 (실제 비용 발생)
+tasks.register('groqBaselineEvaluation', Test) {
+    group = 'verification'
+    description = '실제 Groq API와 AIChatMessageService를 사용해 기준선 평가 12건을 실행합니다.'
+
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+
+    useJUnitPlatform {
+        includeTags 'ai-baseline'
+    }
+
+    testLogging {
+        showStandardStreams = true
+    }
+
+    outputs.upToDateWhen { false }
+}
+
+// 프롬프트 역할 경계 변경의 입력 토큰 고정 비용을 독립 질문 1건으로 측정 (실제 비용 발생)
+tasks.register('groqPromptBoundaryEvaluation', Test) {
+    group = 'verification'
+    description = '실제 Groq API와 AIChatMessageService를 사용해 프롬프트 경계 변경 질문 1건을 실행합니다.'
+
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+
+    useJUnitPlatform {
+        includeTags 'ai-prompt-boundary'
+    }
+
+    testLogging {
+        showStandardStreams = true
+    }
+
+    outputs.upToDateWhen { false }
+}
+
+// 부족한 정보와 관련 일정을 함께 안내하는 v5 응답 규칙으로 고정 평가셋 12건을 재측정 (실제 비용 발생)
+tasks.register('groqResponsePolicyEvaluation', Test) {
+    group = 'verification'
+    description = '실제 Groq API와 AIChatMessageService를 사용해 ai-chat-v5 응답 규칙을 평가합니다.'
+
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+
+    useJUnitPlatform {
+        includeTags 'ai-response-policy'
+    }
+
+    testLogging {
+        showStandardStreams = true
+    }
+
+    outputs.upToDateWhen { false }
+}
+
+// 과거 일정 제외와 일정 개수 상한을 적용한 v6 컨텍스트로 고정 평가셋 12건을 재측정 (실제 비용 발생)
+tasks.register('groqScheduleScopeEvaluation', Test) {
+    group = 'verification'
+    description = '실제 Groq API와 AIChatMessageService를 사용해 ai-chat-v6 일정 범위 제한을 평가합니다.'
+
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+
+    useJUnitPlatform {
+        includeTags 'ai-schedule-scope'
+    }
+
+    testLogging {
+        showStandardStreams = true
+    }
+
+    outputs.upToDateWhen { false }
+}
+
+// 최근 3턴 원문만 전달하는 v7 컨텍스트로 고정 평가셋 12건을 재측정 (실제 비용 발생)
+tasks.register('groqRecentWindowEvaluation', Test) {
+    group = 'verification'
+    description = '실제 Groq API와 AIChatMessageService를 사용해 ai-chat-v7 최근 3턴 윈도우를 평가합니다.'
+
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+
+    useJUnitPlatform {
+        includeTags 'ai-recent-window'
+    }
+
+    testLogging {
+        showStandardStreams = true
+    }
+
+    outputs.upToDateWhen { false }
 }
 
 // querydsl 수동 빌드 task 정의

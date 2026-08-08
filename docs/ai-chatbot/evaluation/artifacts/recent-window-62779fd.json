@@ -1,0 +1,220 @@
+{
+  "metadata" : {
+    "stage" : "recent-window",
+    "datasetVersion" : "ai-chat-eval-v1",
+    "datasetEvaluationDate" : "2026-08-08",
+    "contextReferenceDateTime" : "2026-08-08T00:00+09:00",
+    "executedAt" : "2026-08-09T05:25:07.314744+09:00",
+    "gitCommit" : "62779fd",
+    "workingTreeClean" : true,
+    "model" : "openai/gpt-oss-120b",
+    "baseUrl" : "https://api.groq.com/openai",
+    "modelOptions" : {
+      "model" : "openai/gpt-oss-120b",
+      "maxTokens" : "provider-default",
+      "temperature" : "provider-default"
+    },
+    "promptVersion" : "ai-chat-v7",
+    "requestIntervalMs" : 10000,
+    "scheduleContext" : {
+      "maxSchedules" : 3,
+      "lookAheadDays" : 180
+    },
+    "conversationContext" : {
+      "maxRecentTurns" : 3
+    },
+    "baselineReference" : {
+      "artifact" : "schedule-scope-fc6916b.json",
+      "gitCommit" : "fc6916b",
+      "promptVersion" : "ai-chat-v6",
+      "promptTokens" : 9797,
+      "completionTokens" : 2182,
+      "totalTokens" : 11979
+    }
+  },
+  "results" : [ {
+    "group" : "independent",
+    "caseId" : "specific-date-schedule",
+    "userMessage" : "2026년 8월 20일 일정을 알려줘.",
+    "botMessage" : "2026-08-20 일정  \n- 09시 00분: 경복궁 (관광)  \n- 12시 30분: 토속촌 삼계탕 (음식점)  \n- 15시 00분: 국립민속박물관 (관광)",
+    "promptVersion" : "ai-chat-v7",
+    "model" : "openai/gpt-oss-120b",
+    "promptTokens" : 780,
+    "completionTokens" : 150,
+    "totalTokens" : 930,
+    "llmDurationMs" : 1263,
+    "serviceDurationMs" : 1347,
+    "errorType" : null
+  }, {
+    "group" : "independent",
+    "caseId" : "next-destination",
+    "userMessage" : "경복궁 다음에는 어디에 가기로 했어? 시간도 알려줘.",
+    "botMessage" : "경복궁 다음은 토속촌 삼계탕이며, 방문 시간은 12시 30분입니다.",
+    "promptVersion" : "ai-chat-v7",
+    "model" : "openai/gpt-oss-120b",
+    "promptTokens" : 783,
+    "completionTokens" : 234,
+    "totalTokens" : 1017,
+    "llmDurationMs" : 1343,
+    "serviceDurationMs" : 2154,
+    "errorType" : null
+  }, {
+    "group" : "independent",
+    "caseId" : "empty-date",
+    "userMessage" : "2026년 8월 22일에는 어떤 일정이 있어?",
+    "botMessage" : "2026년 8월 22일에는 일정이 없습니다.",
+    "promptVersion" : "ai-chat-v7",
+    "model" : "openai/gpt-oss-120b",
+    "promptTokens" : 781,
+    "completionTokens" : 149,
+    "totalTokens" : 930,
+    "llmDurationMs" : 867,
+    "serviceDurationMs" : 933,
+    "errorType" : null
+  }, {
+    "group" : "independent",
+    "caseId" : "time-constraint",
+    "userMessage" : "8월 20일 오후 1시에 광화문광장을 방문하려고 해. 기존 일정 사이에 시간이 있는지 알려줘.",
+    "botMessage" : "12시 30분에 토속촌 삼계탕 방문이 예정되어 있어, 종료 시간이나 체류 시간이 없어 13시 방문 가능 여부를 확정할 수 없습니다.",
+    "promptVersion" : "ai-chat-v7",
+    "model" : "openai/gpt-oss-120b",
+    "promptTokens" : 795,
+    "completionTokens" : 383,
+    "totalTokens" : 1178,
+    "llmDurationMs" : 1375,
+    "serviceDurationMs" : 1427,
+    "errorType" : null
+  }, {
+    "group" : "independent",
+    "caseId" : "english-language",
+    "userMessage" : "What is my itinerary for August 21, 2026?",
+    "botMessage" : "On August 21 2026 you have:\n\n- Bukchon Hanok Village – sightseeing – 10:00  \n- Changdeokgung Palace – sightseeing – 14:00",
+    "promptVersion" : "ai-chat-v7",
+    "model" : "openai/gpt-oss-120b",
+    "promptTokens" : 779,
+    "completionTokens" : 325,
+    "totalTokens" : 1104,
+    "llmDurationMs" : 1188,
+    "serviceDurationMs" : 1228,
+    "errorType" : null
+  }, {
+    "group" : "independent",
+    "caseId" : "missing-information",
+    "userMessage" : "서울 여행 항공편 예약번호를 알려줘.",
+    "botMessage" : "2026‑08‑20 09시 00분에 시작하는 일정은 확인되지만, 항공편 예약번호에 대한 정보가 없어 알려드릴 수 없습니다.",
+    "promptVersion" : "ai-chat-v7",
+    "model" : "openai/gpt-oss-120b",
+    "promptTokens" : 777,
+    "completionTokens" : 210,
+    "totalTokens" : 987,
+    "llmDurationMs" : 993,
+    "serviceDurationMs" : 1037,
+    "errorType" : null
+  }, {
+    "group" : "long-term",
+    "caseId" : "long-term-1-preference",
+    "userMessage" : "저는 땅콩 알레르기가 있어요.",
+    "botMessage" : "땅콩 알레르기가 있으신 점 확인했습니다.",
+    "promptVersion" : "ai-chat-v7",
+    "model" : "openai/gpt-oss-120b",
+    "promptTokens" : 778,
+    "completionTokens" : 159,
+    "totalTokens" : 937,
+    "llmDurationMs" : 898,
+    "serviceDurationMs" : 928,
+    "errorType" : null
+  }, {
+    "group" : "long-term",
+    "caseId" : "long-term-2-filler",
+    "userMessage" : "서울 여행 첫날은 언제야?",
+    "botMessage" : "2026-08-20입니다.",
+    "promptVersion" : "ai-chat-v7",
+    "model" : "openai/gpt-oss-120b",
+    "promptTokens" : 809,
+    "completionTokens" : 112,
+    "totalTokens" : 921,
+    "llmDurationMs" : 812,
+    "serviceDurationMs" : 869,
+    "errorType" : null
+  }, {
+    "group" : "long-term",
+    "caseId" : "long-term-3-filler",
+    "userMessage" : "둘째 날은 언제야?",
+    "botMessage" : "2026-08-21입니다.",
+    "promptVersion" : "ai-chat-v7",
+    "model" : "openai/gpt-oss-120b",
+    "promptTokens" : 834,
+    "completionTokens" : 191,
+    "totalTokens" : 1025,
+    "llmDurationMs" : 871,
+    "serviceDurationMs" : 910,
+    "errorType" : null
+  }, {
+    "group" : "long-term",
+    "caseId" : "long-term-4-filler",
+    "userMessage" : "경복궁은 몇 시에 방문해?",
+    "botMessage" : "09시 00분에 방문합니다.",
+    "promptVersion" : "ai-chat-v7",
+    "model" : "openai/gpt-oss-120b",
+    "promptTokens" : 862,
+    "completionTokens" : 94,
+    "totalTokens" : 956,
+    "llmDurationMs" : 815,
+    "serviceDurationMs" : 862,
+    "errorType" : null
+  }, {
+    "group" : "long-term",
+    "caseId" : "long-term-5-filler",
+    "userMessage" : "서울 여행의 마지막 일정은 무엇이야?",
+    "botMessage" : "마지막 일정은 2026‑08‑21에 있는 창덕궁(14시 00분)입니다.",
+    "promptVersion" : "ai-chat-v7",
+    "model" : "openai/gpt-oss-120b",
+    "promptTokens" : 856,
+    "completionTokens" : 166,
+    "totalTokens" : 1022,
+    "llmDurationMs" : 799,
+    "serviceDurationMs" : 823,
+    "errorType" : null
+  }, {
+    "group" : "long-term",
+    "caseId" : "long-term-6-recall",
+    "userMessage" : "제가 말한 음식 알레르기가 무엇이었죠?",
+    "botMessage" : "음식 알레르기에 대한 정보가 제공되지 않았습니다.",
+    "promptVersion" : "ai-chat-v7",
+    "model" : "openai/gpt-oss-120b",
+    "promptTokens" : 878,
+    "completionTokens" : 155,
+    "totalTokens" : 1033,
+    "llmDurationMs" : 905,
+    "serviceDurationMs" : 958,
+    "errorType" : null
+  } ],
+  "summaries" : [ {
+    "group" : "independent",
+    "requests" : 6,
+    "promptTokens" : 4695,
+    "completionTokens" : 1451,
+    "totalTokens" : 6146,
+    "firstPromptTokens" : 780,
+    "lastPromptTokens" : 777,
+    "growthPercent" : -0.38461538461538464
+  }, {
+    "group" : "long-term",
+    "requests" : 6,
+    "promptTokens" : 5017,
+    "completionTokens" : 877,
+    "totalTokens" : 5894,
+    "firstPromptTokens" : 778,
+    "lastPromptTokens" : 878,
+    "growthPercent" : 12.853470437017995
+  }, {
+    "group" : "overall",
+    "requests" : 12,
+    "promptTokens" : 9712,
+    "completionTokens" : 2328,
+    "totalTokens" : 12040,
+    "firstPromptTokens" : 780,
+    "lastPromptTokens" : 878,
+    "growthPercent" : 12.564102564102564
+  } ]
+}
