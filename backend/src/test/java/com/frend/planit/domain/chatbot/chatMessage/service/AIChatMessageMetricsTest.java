@@ -18,7 +18,10 @@ import com.frend.planit.domain.chatbot.chatRoom.repository.AIChatRoomRepository;
 import com.frend.planit.domain.user.entity.User;
 import com.frend.planit.domain.user.enums.LoginType;
 import com.frend.planit.domain.user.repository.UserRepository;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +48,10 @@ class AIChatMessageMetricsTest {
     private static final Long CHAT_ROOM_ID = 10L;
     private static final String USER_MESSAGE = "서울 여행 일정을 알려줘";
     private static final String BOT_MESSAGE = "등록된 서울 여행 일정을 안내해 드릴게요.";
+    private static final Clock FIXED_CLOCK = Clock.fixed(
+            Instant.parse("2026-08-08T03:00:00Z"),
+            ZoneId.of("Asia/Seoul")
+    );
 
     @Mock
     private AIChatRoomRepository aiChatRoomRepository;
@@ -71,8 +78,9 @@ class AIChatMessageMetricsTest {
                 chatClient,
                 userRepository,
                 scheduleRepository,
-                new AIChatPromptFactory(),
-                new AIChatContextProperties(180, 3)
+                new AIChatPromptFactory(FIXED_CLOCK),
+                new AIChatContextProperties(180, 3),
+                FIXED_CLOCK
         );
 
         User user = User.builder()
@@ -118,7 +126,7 @@ class AIChatMessageMetricsTest {
     void loadsOnlyConfiguredScheduleRangeAndCount() {
         when(chatClient.call(any(Prompt.class)))
                 .thenReturn(chatResponse(new ChatResponseMetadata()));
-        LocalDate expectedToday = LocalDate.now();
+        LocalDate expectedToday = LocalDate.of(2026, 8, 8);
 
         createMessage();
 

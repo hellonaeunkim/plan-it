@@ -14,6 +14,7 @@ import com.frend.planit.domain.user.entity.User;
 import com.frend.planit.domain.user.repository.UserRepository;
 import com.frend.planit.global.exception.ServiceException;
 import com.frend.planit.global.response.ErrorType;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -41,6 +42,7 @@ public class AIChatMessageService {
     private final ScheduleRepository scheduleRepository;
     private final AIChatPromptFactory promptFactory;
     private final AIChatContextProperties contextProperties;
+    private final Clock aiChatClock;
 
     @Transactional
     public AIChatMessageResponse createMessages(
@@ -57,7 +59,7 @@ public class AIChatMessageService {
                 .orElseThrow(() -> new ServiceException(ErrorType.AI_CHAT_ROOM_NOT_FOUND));
 
         // 진행 중이거나 가까운 사용자 Schedule 조회
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(aiChatClock);
         LocalDate scheduleRangeEnd = today.plusDays(contextProperties.getScheduleLookAheadDays());
         List<ScheduleEntity> userSchedules = scheduleRepository.findForAIContext(
                 userId,

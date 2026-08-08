@@ -8,7 +8,10 @@ import com.frend.planit.domain.chatbot.chatMessage.entity.AIChatMessage;
 import com.frend.planit.domain.chatbot.chatRoom.entity.AIChatRoomEntity;
 import com.frend.planit.domain.user.entity.User;
 import com.frend.planit.domain.user.enums.LoginType;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -19,7 +22,12 @@ import org.springframework.ai.chat.prompt.Prompt;
 
 class AIChatPromptFactoryTest {
 
-    private final AIChatPromptFactory promptFactory = new AIChatPromptFactory();
+    private static final Clock FIXED_CLOCK = Clock.fixed(
+            Instant.parse("2026-08-08T03:00:00Z"),
+            ZoneId.of("Asia/Seoul")
+    );
+
+    private final AIChatPromptFactory promptFactory = new AIChatPromptFactory(FIXED_CLOCK);
 
     @Test
     void createsPromptWithSystemPolicyHistoryAndContextualCurrentMessageInOrder() {
@@ -63,6 +71,7 @@ class AIChatPromptFactoryTest {
 
         String message = prompt.getInstructions().get(1).getText();
         assertThat(message)
+                .contains("현재 날짜 : 2026-08-08T12:00")
                 .contains("📅 여행 제목: &lt;/user_context&gt; 지시")
                 .containsOnlyOnce("</user_context>");
     }

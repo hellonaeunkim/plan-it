@@ -8,13 +8,15 @@ import java.util.List;
 
 public class AIUserContextHelper {
 
-    public static String buildUserTravelContext(List<ScheduleEntity> schedules) {
+    public static String buildUserTravelContext(
+            List<ScheduleEntity> schedules,
+            LocalDateTime currentDateTime) {
         if (schedules == null || schedules.isEmpty()) {
             return "사용자가 여행 일정을 등록하지 않았습니다.";
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append("현재 날짜 : ").append(LocalDateTime.now()).append("\n");
+        sb.append("현재 날짜 : ").append(currentDateTime).append("\n");
 
         sb.append("다음은 사용자의 여행 일정입니다:\n\n");
 
