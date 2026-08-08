@@ -84,6 +84,8 @@
 
 각 항목을 충족하면 1점, 충족하지 않으면 0점을 기록한다.
 
+질문에 해당 조건 자체가 없어 평가할 수 없는 항목은 `N/A`로 기록하고 점수 분모에서 제외한다. 예를 들어 이전 대화가 없는 독립 질문에서는 `대화 문맥 유지`를 `N/A`로 처리한다. 최종 점수는 고정된 5점 만점이 아니라 `충족 항목 수 / 적용 가능한 항목 수`로 기록한다.
+
 | 항목 | 확인 내용 |
 | --- | --- |
 | 일정 사실 일치 | 날짜·장소·시간이 fixture와 일치하는가 |
@@ -96,7 +98,7 @@
 
 ## 7. 결과 기록 양식
 
-| 측정 날짜 | Git 커밋 | 질문 ID | promptTokens | completionTokens | totalTokens | llmDurationMs | serviceDurationMs | 품질 점수(0~5) | 비고 |
+| 측정 날짜 | Git 커밋 | 질문 ID | promptTokens | completionTokens | totalTokens | llmDurationMs | serviceDurationMs | 품질 점수(충족/적용) | 비고 |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 |  |  |  |  |  |  |  |  |  |  |
 
