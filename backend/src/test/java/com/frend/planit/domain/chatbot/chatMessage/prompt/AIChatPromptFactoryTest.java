@@ -45,7 +45,7 @@ class AIChatPromptFactoryTest {
         assertMessage(messages.get(3), UserMessage.class, "두 번째 질문");
         assertMessage(messages.get(4), AssistantMessage.class, "두 번째 답변");
         assertMessage(messages.get(5), UserMessage.class, currentUserMessage());
-        assertThat(promptFactory.getPromptVersion()).isEqualTo("ai-chat-v4");
+        assertThat(promptFactory.getPromptVersion()).isEqualTo("ai-chat-v5");
     }
 
     @Test
@@ -87,7 +87,7 @@ class AIChatPromptFactoryTest {
                 모든 응답은 자연스럽고 친절하며, 간결하게 작성해야 합니다.
 
                 일정의 방문 시간은 시작 시간일 뿐 종료 시간이나 체류 시간을 뜻하지 않습니다.
-                종료 시간, 체류 시간 또는 이동 시간이 없으면 일정 사이의 여유 시간이나 방문 가능 여부를 판단하지 마십시오.
+                종료 시간, 체류 시간 또는 이동 시간이 없어 판단할 수 없다면 관련 일정의 시작 시간과 부족한 정보를 안내한 뒤, 확정적으로 판단할 수 없다고 답하십시오.
                 제공된 데이터에 없는 사실이나 실행하지 않은 일정 저장, 수정, 예약 결과를 만들지 마십시오.
                 사용자가 선호나 제약만 전달했다면 추가 조언 없이 한 문장으로 확인하십시오.
                 질문에 직접 답하고 요청하지 않은 설명, 표, 대안을 덧붙이지 마십시오.
