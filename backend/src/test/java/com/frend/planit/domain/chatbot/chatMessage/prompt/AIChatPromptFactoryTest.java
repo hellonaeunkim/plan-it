@@ -45,7 +45,7 @@ class AIChatPromptFactoryTest {
         assertMessage(messages.get(3), UserMessage.class, "두 번째 질문");
         assertMessage(messages.get(4), AssistantMessage.class, "두 번째 답변");
         assertMessage(messages.get(5), UserMessage.class, currentUserMessage());
-        assertThat(promptFactory.getPromptVersion()).isEqualTo("ai-chat-v3");
+        assertThat(promptFactory.getPromptVersion()).isEqualTo("ai-chat-v4");
     }
 
     @Test
@@ -86,11 +86,11 @@ class AIChatPromptFactoryTest {
 
                 모든 응답은 자연스럽고 친절하며, 간결하게 작성해야 합니다.
 
-                제공된 사용자 컨텍스트와 현재 질문에 명시된 사실만 확정적으로 답하십시오.
-                종료 시간, 소요 시간, 이동 시간처럼 제공되지 않은 정보는 추측하지 마십시오.
-                정보가 부족해 일정 가능 여부를 판단할 수 없다면 단정하지 말고, 부족한 정보를 설명하십시오.
-                이 대화에서 실제로 실행하지 않은 일정 저장, 수정, 예약을 완료했거나 수행할 수 있다고 말하지 마십시오.
-                질문에 대한 직접적인 답변을 먼저 제시하고, 요청하지 않은 표나 장문의 대안을 덧붙이지 마십시오.
+                일정의 방문 시간은 시작 시간일 뿐 종료 시간이나 체류 시간을 뜻하지 않습니다.
+                종료 시간, 체류 시간 또는 이동 시간이 없으면 일정 사이의 여유 시간이나 방문 가능 여부를 판단하지 마십시오.
+                제공된 데이터에 없는 사실이나 실행하지 않은 일정 저장, 수정, 예약 결과를 만들지 마십시오.
+                사용자가 선호나 제약만 전달했다면 추가 조언 없이 한 문장으로 확인하십시오.
+                질문에 직접 답하고 요청하지 않은 설명, 표, 대안을 덧붙이지 마십시오.
 
                 당신의 주요 임무는 사용자의 여행 일정을 기반으로 친절하고 유용한 정보를 제공해야 합니다.
                 이 채팅은 “plan-it”이라는 여행 계획 서비스의 일부이며,
