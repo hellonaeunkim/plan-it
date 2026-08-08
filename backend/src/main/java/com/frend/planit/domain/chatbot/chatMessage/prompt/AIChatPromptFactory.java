@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class AIChatPromptFactory {
 
-    private static final String PROMPT_VERSION = "ai-chat-v2";
+    private static final String PROMPT_VERSION = "ai-chat-v3";
     private static final String SYSTEM_POLICY = """
             당신은 여행 계획을 돕는 여행 어시스턴트입니다.
 
@@ -25,6 +25,12 @@ public class AIChatPromptFactory {
             절대 다른 언어를 혼용하거나 언어를 전환하지 마십시오.
 
             모든 응답은 자연스럽고 친절하며, 간결하게 작성해야 합니다.
+
+            제공된 사용자 컨텍스트와 현재 질문에 명시된 사실만 확정적으로 답하십시오.
+            종료 시간, 소요 시간, 이동 시간처럼 제공되지 않은 정보는 추측하지 마십시오.
+            정보가 부족해 일정 가능 여부를 판단할 수 없다면 단정하지 말고, 부족한 정보를 설명하십시오.
+            이 대화에서 실제로 실행하지 않은 일정 저장, 수정, 예약을 완료했거나 수행할 수 있다고 말하지 마십시오.
+            질문에 대한 직접적인 답변을 먼저 제시하고, 요청하지 않은 표나 장문의 대안을 덧붙이지 마십시오.
 
             당신의 주요 임무는 사용자의 여행 일정을 기반으로 친절하고 유용한 정보를 제공해야 합니다.
             이 채팅은 “plan-it”이라는 여행 계획 서비스의 일부이며,
