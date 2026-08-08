@@ -112,7 +112,7 @@ class AIChatMessageMetricsTest {
         assertThat(response.getBotMessage()).isEqualTo(BOT_MESSAGE);
         assertThat(output)
                 .contains("event=ai_chat_response_metric")
-                .contains("promptVersion=ai-chat-v6")
+                .contains("promptVersion=ai-chat-v7")
                 .contains("model=openai/gpt-oss-120b")
                 .contains("usageAvailable=true")
                 .contains("promptTokens=120")
@@ -170,7 +170,7 @@ class AIChatMessageMetricsTest {
         verify(aiChatMessageRepository).save(any(AIChatMessage.class));
         assertThat(output)
                 .contains("event=ai_chat_response_metric_failed")
-                .contains("promptVersion=ai-chat-v6")
+                .contains("promptVersion=ai-chat-v7")
                 .contains("errorType=NullPointerException");
     }
 

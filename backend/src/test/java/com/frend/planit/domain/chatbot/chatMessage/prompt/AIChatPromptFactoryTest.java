@@ -53,7 +53,7 @@ class AIChatPromptFactoryTest {
         assertMessage(messages.get(3), UserMessage.class, "두 번째 질문");
         assertMessage(messages.get(4), AssistantMessage.class, "두 번째 답변");
         assertMessage(messages.get(5), UserMessage.class, currentUserMessage());
-        assertThat(promptFactory.getPromptVersion()).isEqualTo("ai-chat-v6");
+        assertThat(promptFactory.getPromptVersion()).isEqualTo("ai-chat-v7");
     }
 
     @Test

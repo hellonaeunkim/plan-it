@@ -16,6 +16,8 @@ import com.frend.planit.global.exception.ServiceException;
 import com.frend.planit.global.response.ErrorType;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
@@ -68,9 +70,17 @@ public class AIChatMessageService {
                 PageRequest.of(0, contextProperties.getMaxSchedules())
         );
 
+        List<AIChatMessage> recentChatMessages = new ArrayList<>(
+                aiChatMessageRepository.findRecentByChatRoomId(
+                        chatRoomId,
+                        PageRequest.of(0, contextProperties.getMaxRecentTurns())
+                )
+        );
+        Collections.reverse(recentChatMessages);
+
         Prompt prompt = promptFactory.create(
                 userSchedules,
-                chatRoom.getAIChatMessages(),
+                recentChatMessages,
                 request.getUserMessage()
         );
 
