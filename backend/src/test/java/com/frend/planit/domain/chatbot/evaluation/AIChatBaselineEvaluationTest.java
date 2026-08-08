@@ -19,6 +19,8 @@ import com.frend.planit.domain.chatbot.chatMessage.dto.response.AIChatMessageRes
 import com.frend.planit.domain.chatbot.chatMessage.service.AIChatMessageService;
 import com.frend.planit.domain.chatbot.chatRoom.entity.AIChatRoomEntity;
 import com.frend.planit.domain.chatbot.chatRoom.repository.AIChatRoomRepository;
+import com.frend.planit.domain.chatbot.evaluation.AIChatEvaluationArtifacts.CaseBaseline;
+import com.frend.planit.domain.chatbot.evaluation.AIChatEvaluationArtifacts.OverallBaseline;
 import com.frend.planit.domain.chatbot.evaluation.AIChatMetricLogParser.AIChatMetric;
 import com.frend.planit.domain.user.entity.User;
 import com.frend.planit.domain.user.enums.LoginType;
@@ -72,15 +74,14 @@ class AIChatBaselineEvaluationTest {
     private static final String RESPONSE_POLICY_STAGE = "response-policy-v5";
     private static final String PROMPT_BOUNDARY_CASE_ID = "specific-date-schedule";
     private static final String PROMPT_BOUNDARY_EXPECTED_VERSION = "ai-chat-v2";
-    private static final String PROMPT_BOUNDARY_BASELINE_VERSION = "ai-chat-v1";
-    private static final String PROMPT_BOUNDARY_BASELINE_COMMIT = "3c0c931";
-    private static final int PROMPT_BOUNDARY_BASELINE_TOKENS = 715;
     private static final String RESPONSE_POLICY_EXPECTED_VERSION = "ai-chat-v5";
-    private static final String RESPONSE_POLICY_BASELINE_VERSION = "ai-chat-v4";
-    private static final String RESPONSE_POLICY_BASELINE_COMMIT = "dc84c46";
-    private static final int RESPONSE_POLICY_BASELINE_PROMPT_TOKENS = 10_998;
-    private static final int RESPONSE_POLICY_BASELINE_COMPLETION_TOKENS = 2_001;
-    private static final int RESPONSE_POLICY_BASELINE_TOTAL_TOKENS = 12_999;
+
+    // 비교 기준 수치는 상수로 옮겨 적지 않고 아래 결과 파일에서 직접 읽는다.
+    // 다음 프롬프트 버전을 측정할 때는 이 파일 이름만 직전 측정 결과로 교체한다.
+    private static final String PROMPT_BOUNDARY_BASELINE_ARTIFACT = "baseline-3c0c931.json";
+    private static final String RESPONSE_POLICY_BASELINE_ARTIFACT =
+            "response-policy-refined-dc84c46.json";
+
     private static final String DATASET_PATH = "ai-chatbot/evaluation-dataset-v1.json";
     private static final Path BASELINE_ARTIFACT_PATH = Path.of(
             "build", "ai-evaluation", "baseline-results.json"
@@ -90,9 +91,6 @@ class AIChatBaselineEvaluationTest {
     );
     private static final Path RESPONSE_POLICY_ARTIFACT_PATH = Path.of(
             "build", "ai-evaluation", "response-policy-v5-results.json"
-    );
-    private static final Path TRACKED_ARTIFACT_DIRECTORY = Path.of(
-            "..", "docs", "ai-chatbot", "evaluation-results"
     );
     private static final String EXPECTED_BASE_URL = "https://api.groq.com/openai";
     private static final String EXPECTED_MODEL = "openai/gpt-oss-120b";
@@ -141,12 +139,14 @@ class AIChatBaselineEvaluationTest {
 
     private String stage;
     private Path artifactPath;
+    private Map<String, Object> baselineMetadata;
 
     @Test
     @Tag("ai-baseline")
     void recordsBaselineTokenUsageAndResponses(CapturedOutput output) throws Exception {
         stage = BASELINE_STAGE;
         artifactPath = BASELINE_ARTIFACT_PATH;
+        baselineMetadata = null;
         assertRealGroqConfigured();
         GitSnapshot gitSnapshot = requireCleanGitSnapshot();
         JsonNode dataset = loadDataset();
@@ -176,6 +176,13 @@ class AIChatBaselineEvaluationTest {
         stage = PROMPT_BOUNDARY_STAGE;
         artifactPath = PROMPT_BOUNDARY_ARTIFACT_PATH;
         assertRealGroqConfigured();
+        // 실제 호출로 비용을 쓰기 전에 비교 기준부터 확보한다.
+        CaseBaseline baseline = AIChatEvaluationArtifacts.loadCaseBaseline(
+                objectMapper,
+                PROMPT_BOUNDARY_BASELINE_ARTIFACT,
+                PROMPT_BOUNDARY_CASE_ID
+        );
+        baselineMetadata = baseline.toMetadata();
         GitSnapshot gitSnapshot = requireCleanGitSnapshot();
         JsonNode dataset = loadDataset();
         User user = createFixture(dataset.path("scheduleFixture"), stage);
@@ -199,7 +206,7 @@ class AIChatBaselineEvaluationTest {
                 assertThat(result.successful()).isTrue();
                 assertThat(result.promptVersion()).isEqualTo(PROMPT_BOUNDARY_EXPECTED_VERSION);
             });
-            printPromptBoundaryComparison(results.getFirst());
+            printPromptBoundaryComparison(results.getFirst(), baseline);
             completed = true;
         } finally {
             writeArtifact(dataset, results, gitSnapshot, completed);
@@ -212,6 +219,12 @@ class AIChatBaselineEvaluationTest {
         stage = RESPONSE_POLICY_STAGE;
         artifactPath = RESPONSE_POLICY_ARTIFACT_PATH;
         assertRealGroqConfigured();
+        // 실제 호출로 비용을 쓰기 전에 비교 기준부터 확보한다.
+        OverallBaseline baseline = AIChatEvaluationArtifacts.loadOverallBaseline(
+                objectMapper,
+                RESPONSE_POLICY_BASELINE_ARTIFACT
+        );
+        baselineMetadata = baseline.toMetadata();
         GitSnapshot gitSnapshot = requireCleanGitSnapshot();
         JsonNode dataset = loadDataset();
         User user = createFixture(dataset.path("scheduleFixture"), stage);
@@ -228,7 +241,7 @@ class AIChatBaselineEvaluationTest {
                     .extracting(EvaluationResult::promptVersion)
                     .containsOnly(RESPONSE_POLICY_EXPECTED_VERSION);
             printSummaries(results);
-            printResponsePolicyComparison(results);
+            printResponsePolicyComparison(results, baseline);
             completed = true;
         } finally {
             writeArtifact(dataset, results, gitSnapshot, completed);
@@ -473,43 +486,48 @@ class AIChatBaselineEvaluationTest {
         );
     }
 
-    private void printPromptBoundaryComparison(EvaluationResult result) {
-        int deltaPromptTokens = result.promptTokens() - PROMPT_BOUNDARY_BASELINE_TOKENS;
-        double changePercent = deltaPromptTokens * 100.0 / PROMPT_BOUNDARY_BASELINE_TOKENS;
+    private void printPromptBoundaryComparison(EvaluationResult result, CaseBaseline baseline) {
+        int deltaPromptTokens = result.promptTokens() - baseline.promptTokens();
+        double changePercent = deltaPromptTokens * 100.0 / baseline.promptTokens();
 
         System.out.printf(
                 Locale.ROOT,
                 "AI_EVAL_COMPARISON stage=%s case=%s promptVersion=%s "
+                        + "baselineArtifact=%s baselineVersion=%s "
                         + "baselinePromptTokens=%d currentPromptTokens=%d "
                         + "deltaPromptTokens=%+d changePercent=%+.2f%n",
                 stage,
                 result.caseId(),
                 result.promptVersion(),
-                PROMPT_BOUNDARY_BASELINE_TOKENS,
+                baseline.artifact(),
+                baseline.promptVersion(),
+                baseline.promptTokens(),
                 result.promptTokens(),
                 deltaPromptTokens,
                 changePercent
         );
     }
 
-    private void printResponsePolicyComparison(List<EvaluationResult> results) {
+    private void printResponsePolicyComparison(
+            List<EvaluationResult> results,
+            OverallBaseline baseline
+    ) {
         EvaluationSummary overall = summarize("overall", results);
 
-        printTokenComparison(
-                "promptTokens",
-                RESPONSE_POLICY_BASELINE_PROMPT_TOKENS,
-                overall.promptTokens()
+        System.out.printf(
+                "AI_EVAL_BASELINE stage=%s artifact=%s gitCommit=%s promptVersion=%s%n",
+                stage,
+                baseline.artifact(),
+                baseline.gitCommit(),
+                baseline.promptVersion()
         );
+        printTokenComparison("promptTokens", baseline.promptTokens(), overall.promptTokens());
         printTokenComparison(
                 "completionTokens",
-                RESPONSE_POLICY_BASELINE_COMPLETION_TOKENS,
+                baseline.completionTokens(),
                 overall.completionTokens()
         );
-        printTokenComparison(
-                "totalTokens",
-                RESPONSE_POLICY_BASELINE_TOTAL_TOKENS,
-                overall.totalTokens()
-        );
+        printTokenComparison("totalTokens", baseline.totalTokens(), overall.totalTokens());
     }
 
     private void printTokenComparison(String metric, int baseline, int current) {
@@ -622,21 +640,8 @@ class AIChatBaselineEvaluationTest {
                 .findFirst()
                 .orElse("unknown"));
         metadata.put("requestIntervalMs", REQUEST_INTERVAL_MS);
-        if (PROMPT_BOUNDARY_STAGE.equals(stage)) {
-            metadata.put("baselineReference", Map.of(
-                    "gitCommit", PROMPT_BOUNDARY_BASELINE_COMMIT,
-                    "promptVersion", PROMPT_BOUNDARY_BASELINE_VERSION,
-                    "caseId", PROMPT_BOUNDARY_CASE_ID,
-                    "promptTokens", PROMPT_BOUNDARY_BASELINE_TOKENS
-            ));
-        } else if (RESPONSE_POLICY_STAGE.equals(stage)) {
-            metadata.put("baselineReference", Map.of(
-                    "gitCommit", RESPONSE_POLICY_BASELINE_COMMIT,
-                    "promptVersion", RESPONSE_POLICY_BASELINE_VERSION,
-                    "promptTokens", RESPONSE_POLICY_BASELINE_PROMPT_TOKENS,
-                    "completionTokens", RESPONSE_POLICY_BASELINE_COMPLETION_TOKENS,
-                    "totalTokens", RESPONSE_POLICY_BASELINE_TOTAL_TOKENS
-            ));
+        if (baselineMetadata != null) {
+            metadata.put("baselineReference", baselineMetadata);
         }
 
         Map<String, Object> artifact = new LinkedHashMap<>();
@@ -652,8 +657,9 @@ class AIChatBaselineEvaluationTest {
         System.out.println("AI_EVAL_ARTIFACT path=" + artifactPath);
 
         if (completed) {
-            Files.createDirectories(TRACKED_ARTIFACT_DIRECTORY);
-            Path trackedArtifactPath = TRACKED_ARTIFACT_DIRECTORY.resolve(
+            Path trackedDirectory = AIChatEvaluationArtifacts.TRACKED_ARTIFACT_DIRECTORY;
+            Files.createDirectories(trackedDirectory);
+            Path trackedArtifactPath = trackedDirectory.resolve(
                     stage + "-" + gitSnapshot.commit() + ".json"
             );
             objectMapper.writerWithDefaultPrettyPrinter()
