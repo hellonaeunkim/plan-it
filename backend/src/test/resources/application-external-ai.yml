@@ -1,0 +1,7 @@
+spring:
+  ai:
+    openai:
+      base-url: https://api.groq.com/openai
+      chat:
+        options:
+          model: openai/gpt-oss-120b
