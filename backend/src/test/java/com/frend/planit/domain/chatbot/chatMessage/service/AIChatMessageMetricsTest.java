@@ -2,10 +2,12 @@ package com.frend.planit.domain.chatbot.chatMessage.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.frend.planit.domain.calendar.schedule.repository.ScheduleRepository;
+import com.frend.planit.domain.chatbot.chatMessage.config.AIChatContextProperties;
 import com.frend.planit.domain.chatbot.chatMessage.dto.request.AIChatMessageRequest;
 import com.frend.planit.domain.chatbot.chatMessage.dto.response.AIChatMessageResponse;
 import com.frend.planit.domain.chatbot.chatMessage.entity.AIChatMessage;
@@ -16,11 +18,13 @@ import com.frend.planit.domain.chatbot.chatRoom.repository.AIChatRoomRepository;
 import com.frend.planit.domain.user.entity.User;
 import com.frend.planit.domain.user.enums.LoginType;
 import com.frend.planit.domain.user.repository.UserRepository;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -32,6 +36,7 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.data.domain.Pageable;
 
 @ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class AIChatMessageMetricsTest {
@@ -66,7 +71,8 @@ class AIChatMessageMetricsTest {
                 chatClient,
                 userRepository,
                 scheduleRepository,
-                new AIChatPromptFactory()
+                new AIChatPromptFactory(),
+                new AIChatContextProperties(180, 3)
         );
 
         User user = User.builder()
@@ -79,7 +85,8 @@ class AIChatMessageMetricsTest {
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
         when(aiChatRoomRepository.findByIdAndUserId(CHAT_ROOM_ID, USER_ID))
                 .thenReturn(Optional.of(chatRoom));
-        when(scheduleRepository.findAllByUserId(USER_ID)).thenReturn(List.of());
+        when(scheduleRepository.findForAIContext(any(), any(), any(), any()))
+                .thenReturn(List.of());
         when(aiChatMessageRepository.save(any(AIChatMessage.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }
@@ -97,7 +104,7 @@ class AIChatMessageMetricsTest {
         assertThat(response.getBotMessage()).isEqualTo(BOT_MESSAGE);
         assertThat(output)
                 .contains("event=ai_chat_response_metric")
-                .contains("promptVersion=ai-chat-v5")
+                .contains("promptVersion=ai-chat-v6")
                 .contains("model=openai/gpt-oss-120b")
                 .contains("usageAvailable=true")
                 .contains("promptTokens=120")
@@ -105,6 +112,28 @@ class AIChatMessageMetricsTest {
                 .contains("totalTokens=150")
                 .contains("llmDurationMs=")
                 .contains("serviceDurationMs=");
+    }
+
+    @Test
+    void loadsOnlyConfiguredScheduleRangeAndCount() {
+        when(chatClient.call(any(Prompt.class)))
+                .thenReturn(chatResponse(new ChatResponseMetadata()));
+        LocalDate expectedToday = LocalDate.now();
+
+        createMessage();
+
+        ArgumentCaptor<LocalDate> fromDateCaptor = ArgumentCaptor.forClass(LocalDate.class);
+        ArgumentCaptor<LocalDate> toDateCaptor = ArgumentCaptor.forClass(LocalDate.class);
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(scheduleRepository).findForAIContext(
+                eq(USER_ID),
+                fromDateCaptor.capture(),
+                toDateCaptor.capture(),
+                pageableCaptor.capture()
+        );
+        assertThat(fromDateCaptor.getValue()).isEqualTo(expectedToday);
+        assertThat(toDateCaptor.getValue()).isEqualTo(expectedToday.plusDays(180));
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(3);
     }
 
     @Test
@@ -133,7 +162,7 @@ class AIChatMessageMetricsTest {
         verify(aiChatMessageRepository).save(any(AIChatMessage.class));
         assertThat(output)
                 .contains("event=ai_chat_response_metric_failed")
-                .contains("promptVersion=ai-chat-v5")
+                .contains("promptVersion=ai-chat-v6")
                 .contains("errorType=NullPointerException");
     }
 

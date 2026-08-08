@@ -2,6 +2,7 @@ package com.frend.planit.domain.chatbot.chatMessage.service;
 
 import com.frend.planit.domain.calendar.schedule.entity.ScheduleEntity;
 import com.frend.planit.domain.calendar.schedule.repository.ScheduleRepository;
+import com.frend.planit.domain.chatbot.chatMessage.config.AIChatContextProperties;
 import com.frend.planit.domain.chatbot.chatMessage.dto.request.AIChatMessageRequest;
 import com.frend.planit.domain.chatbot.chatMessage.dto.response.AIChatMessageResponse;
 import com.frend.planit.domain.chatbot.chatMessage.entity.AIChatMessage;
@@ -13,6 +14,7 @@ import com.frend.planit.domain.user.entity.User;
 import com.frend.planit.domain.user.repository.UserRepository;
 import com.frend.planit.global.exception.ServiceException;
 import com.frend.planit.global.response.ErrorType;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -37,7 +40,7 @@ public class AIChatMessageService {
     private final UserRepository userRepository;
     private final ScheduleRepository scheduleRepository;
     private final AIChatPromptFactory promptFactory;
-
+    private final AIChatContextProperties contextProperties;
 
     @Transactional
     public AIChatMessageResponse createMessages(
@@ -53,8 +56,15 @@ public class AIChatMessageService {
         AIChatRoomEntity chatRoom = aiChatRoomRepository.findByIdAndUserId(chatRoomId, userId)
                 .orElseThrow(() -> new ServiceException(ErrorType.AI_CHAT_ROOM_NOT_FOUND));
 
-        // 사용자 Schedule 조회
-        List<ScheduleEntity> userSchedules = scheduleRepository.findAllByUserId(userId);
+        // 진행 중이거나 가까운 사용자 Schedule 조회
+        LocalDate today = LocalDate.now();
+        LocalDate scheduleRangeEnd = today.plusDays(contextProperties.getScheduleLookAheadDays());
+        List<ScheduleEntity> userSchedules = scheduleRepository.findForAIContext(
+                userId,
+                today,
+                scheduleRangeEnd,
+                PageRequest.of(0, contextProperties.getMaxSchedules())
+        );
 
         Prompt prompt = promptFactory.create(
                 userSchedules,

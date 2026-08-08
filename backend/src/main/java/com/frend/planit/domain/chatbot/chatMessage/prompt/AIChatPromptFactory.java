@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class AIChatPromptFactory {
 
-    private static final String PROMPT_VERSION = "ai-chat-v5";
+    private static final String PROMPT_VERSION = "ai-chat-v6";
     private static final String SYSTEM_POLICY = """
             당신은 여행 계획을 돕는 여행 어시스턴트입니다.
 
