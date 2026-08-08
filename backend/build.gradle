@@ -203,6 +203,25 @@ tasks.register('groqScheduleScopeEvaluation', Test) {
     outputs.upToDateWhen { false }
 }
 
+// 최근 3턴 원문만 전달하는 v7 컨텍스트로 고정 평가셋 12건을 재측정 (실제 비용 발생)
+tasks.register('groqRecentWindowEvaluation', Test) {
+    group = 'verification'
+    description = '실제 Groq API와 AIChatMessageService를 사용해 ai-chat-v7 최근 3턴 윈도우를 평가합니다.'
+
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+
+    useJUnitPlatform {
+        includeTags 'ai-recent-window'
+    }
+
+    testLogging {
+        showStandardStreams = true
+    }
+
+    outputs.upToDateWhen { false }
+}
+
 // querydsl 수동 빌드 task 정의
 tasks.register("compileQuerydsl", JavaCompile) {
     group = "build"

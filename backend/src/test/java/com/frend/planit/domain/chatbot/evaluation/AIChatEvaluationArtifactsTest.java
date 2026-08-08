@@ -47,6 +47,20 @@ class AIChatEvaluationArtifactsTest {
     }
 
     @Test
+    void readsOverallTotalsFromScheduleScopeArtifact() throws Exception {
+        OverallBaseline baseline = AIChatEvaluationArtifacts.loadOverallBaseline(
+                objectMapper,
+                "schedule-scope-fc6916b.json"
+        );
+
+        assertThat(baseline.gitCommit()).isEqualTo("fc6916b");
+        assertThat(baseline.promptVersion()).isEqualTo("ai-chat-v6");
+        assertThat(baseline.promptTokens()).isEqualTo(9_797);
+        assertThat(baseline.completionTokens()).isEqualTo(2_182);
+        assertThat(baseline.totalTokens()).isEqualTo(11_979);
+    }
+
+    @Test
     void readsSingleCasePromptTokensFromBaselineArtifact() throws Exception {
         CaseBaseline baseline = AIChatEvaluationArtifacts.loadCaseBaseline(
                 objectMapper,

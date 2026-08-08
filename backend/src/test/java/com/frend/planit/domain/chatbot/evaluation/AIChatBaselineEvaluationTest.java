@@ -88,10 +88,12 @@ class AIChatBaselineEvaluationTest {
     private static final String PROMPT_BOUNDARY_STAGE = "prompt-boundary";
     private static final String RESPONSE_POLICY_STAGE = "response-policy-v5";
     private static final String SCHEDULE_SCOPE_STAGE = "schedule-scope";
+    private static final String RECENT_WINDOW_STAGE = "recent-window";
     private static final String PROMPT_BOUNDARY_CASE_ID = "specific-date-schedule";
     private static final String PROMPT_BOUNDARY_EXPECTED_VERSION = "ai-chat-v2";
     private static final String RESPONSE_POLICY_EXPECTED_VERSION = "ai-chat-v5";
     private static final String SCHEDULE_SCOPE_EXPECTED_VERSION = "ai-chat-v6";
+    private static final String RECENT_WINDOW_EXPECTED_VERSION = "ai-chat-v7";
 
     // 비교 기준 수치는 상수로 옮겨 적지 않고 아래 결과 파일에서 직접 읽는다.
     // 다음 프롬프트 버전을 측정할 때는 이 파일 이름만 직전 측정 결과로 교체한다.
@@ -100,6 +102,8 @@ class AIChatBaselineEvaluationTest {
             "response-policy-refined-dc84c46.json";
     private static final String SCHEDULE_SCOPE_BASELINE_ARTIFACT =
             "response-policy-v5-95f7fa4.json";
+    private static final String RECENT_WINDOW_BASELINE_ARTIFACT =
+            "schedule-scope-fc6916b.json";
 
     private static final String DATASET_PATH = "ai-chatbot/evaluation-dataset-v1.json";
     private static final Path BASELINE_ARTIFACT_PATH = Path.of(
@@ -113,6 +117,9 @@ class AIChatBaselineEvaluationTest {
     );
     private static final Path SCHEDULE_SCOPE_ARTIFACT_PATH = Path.of(
             "build", "ai-evaluation", "schedule-scope-results.json"
+    );
+    private static final Path RECENT_WINDOW_ARTIFACT_PATH = Path.of(
+            "build", "ai-evaluation", "recent-window-results.json"
     );
     private static final String EXPECTED_BASE_URL = "https://api.groq.com/openai";
     private static final String EXPECTED_MODEL = "openai/gpt-oss-120b";
@@ -310,6 +317,41 @@ class AIChatBaselineEvaluationTest {
             assertThat(results)
                     .extracting(EvaluationResult::promptVersion)
                     .containsOnly(SCHEDULE_SCOPE_EXPECTED_VERSION);
+            printSummaries(results);
+            printOverallComparison(results, baseline);
+            completed = true;
+        } finally {
+            writeArtifact(dataset, results, gitSnapshot, completed);
+        }
+    }
+
+    @Test
+    @Tag("ai-recent-window")
+    void recordsRecentWindowTokenUsageAndResponses(CapturedOutput output) throws Exception {
+        stage = RECENT_WINDOW_STAGE;
+        artifactPath = RECENT_WINDOW_ARTIFACT_PATH;
+        assertRealGroqConfigured();
+        assertRecentWindowConfigured();
+        OverallBaseline baseline = AIChatEvaluationArtifacts.loadOverallBaseline(
+                objectMapper,
+                RECENT_WINDOW_BASELINE_ARTIFACT
+        );
+        baselineMetadata = baseline.toMetadata();
+        GitSnapshot gitSnapshot = requireCleanGitSnapshot();
+        JsonNode dataset = loadDataset();
+        User user = createFixture(dataset.path("scheduleFixture"), stage);
+        List<EvaluationResult> results = new ArrayList<>();
+        boolean completed = false;
+
+        try {
+            runIndependentQuestions(dataset, user, output, results);
+            runLongTermScenario(dataset, user, output, results);
+
+            assertThat(results).hasSize(12);
+            assertThat(results).allMatch(EvaluationResult::successful);
+            assertThat(results)
+                    .extracting(EvaluationResult::promptVersion)
+                    .containsOnly(RECENT_WINDOW_EXPECTED_VERSION);
             printSummaries(results);
             printOverallComparison(results, baseline);
             completed = true;
@@ -549,6 +591,10 @@ class AIChatBaselineEvaluationTest {
         assertThat(contextProperties.getMaxSchedules()).isEqualTo(3);
     }
 
+    private void assertRecentWindowConfigured() {
+        assertThat(contextProperties.getMaxRecentTurns()).isEqualTo(3);
+    }
+
     private void printResult(EvaluationResult result) {
         System.out.printf(
                 Locale.ROOT,
@@ -723,6 +769,9 @@ class AIChatBaselineEvaluationTest {
         metadata.put("scheduleContext", Map.of(
                 "lookAheadDays", contextProperties.getScheduleLookAheadDays(),
                 "maxSchedules", contextProperties.getMaxSchedules()
+        ));
+        metadata.put("conversationContext", Map.of(
+                "maxRecentTurns", contextProperties.getMaxRecentTurns()
         ));
         if (baselineMetadata != null) {
             metadata.put("baselineReference", baselineMetadata);
