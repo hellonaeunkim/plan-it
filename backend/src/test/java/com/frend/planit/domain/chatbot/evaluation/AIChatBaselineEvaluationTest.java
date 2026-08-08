@@ -14,6 +14,7 @@ import com.frend.planit.domain.calendar.schedule.repository.ScheduleRepository;
 import com.frend.planit.domain.calendar.schedule.travel.dto.request.TravelRequest;
 import com.frend.planit.domain.calendar.schedule.travel.entity.TravelEntity;
 import com.frend.planit.domain.calendar.schedule.travel.repository.TravelRepository;
+import com.frend.planit.domain.chatbot.chatMessage.config.AIChatContextProperties;
 import com.frend.planit.domain.chatbot.chatMessage.dto.request.AIChatMessageRequest;
 import com.frend.planit.domain.chatbot.chatMessage.dto.response.AIChatMessageResponse;
 import com.frend.planit.domain.chatbot.chatMessage.service.AIChatMessageService;
@@ -128,14 +129,11 @@ class AIChatBaselineEvaluationTest {
     @Value("${spring.ai.openai.chat.options.model:}")
     private String model;
 
-    @Value("${planit.ai.chat.schedule-look-ahead-days:0}")
-    private int scheduleLookAheadDays;
-
-    @Value("${planit.ai.chat.max-schedules:0}")
-    private int maxSchedules;
-
     @Autowired
     private OpenAiChatModel chatClient;
+
+    @Autowired
+    private AIChatContextProperties contextProperties;
 
     @Autowired
     private AIChatMessageService aiChatMessageService;
@@ -547,8 +545,8 @@ class AIChatBaselineEvaluationTest {
     }
 
     private void assertScheduleScopeConfigured() {
-        assertThat(scheduleLookAheadDays).isEqualTo(180);
-        assertThat(maxSchedules).isEqualTo(3);
+        assertThat(contextProperties.getScheduleLookAheadDays()).isEqualTo(180);
+        assertThat(contextProperties.getMaxSchedules()).isEqualTo(3);
     }
 
     private void printResult(EvaluationResult result) {
@@ -723,8 +721,8 @@ class AIChatBaselineEvaluationTest {
                 .orElse("unknown"));
         metadata.put("requestIntervalMs", REQUEST_INTERVAL_MS);
         metadata.put("scheduleContext", Map.of(
-                "lookAheadDays", scheduleLookAheadDays,
-                "maxSchedules", maxSchedules
+                "lookAheadDays", contextProperties.getScheduleLookAheadDays(),
+                "maxSchedules", contextProperties.getMaxSchedules()
         ));
         if (baselineMetadata != null) {
             metadata.put("baselineReference", baselineMetadata);
