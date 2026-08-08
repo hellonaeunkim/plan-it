@@ -1,0 +1,67 @@
+{
+  "metadata" : {
+    "stage" : "prompt-boundary",
+    "datasetVersion" : "ai-chat-eval-v1",
+    "datasetEvaluationDate" : "2026-08-08",
+    "executedAt" : "2026-08-09T02:14:14.013938+09:00",
+    "gitCommit" : "e66b0dd",
+    "workingTreeClean" : true,
+    "model" : "openai/gpt-oss-120b",
+    "baseUrl" : "https://api.groq.com/openai",
+    "modelOptions" : {
+      "model" : "openai/gpt-oss-120b",
+      "temperature" : "provider-default",
+      "maxTokens" : "provider-default"
+    },
+    "promptVersion" : "ai-chat-v2",
+    "requestIntervalMs" : 10000,
+    "baselineReference" : {
+      "gitCommit" : "3c0c931",
+      "caseId" : "specific-date-schedule",
+      "promptVersion" : "ai-chat-v1",
+      "promptTokens" : 715
+    }
+  },
+  "results" : [ {
+    "group" : "independent",
+    "caseId" : "specific-date-schedule",
+    "userMessage" : "2026년 8월 20일 일정을 알려줘.",
+    "botMessage" : "**2026년 8월 20일 – 서울 역사 문화 여행 일정**\n\n| 시간 | 장소 | 카테고리 |\n|------|------|----------|\n| 09시 00분 | 경복궁 | 관광 |\n| 12시 30분 | 토속촌 삼계탕 | 음식점 |\n| 15시 00분 | 국립민속박물관 | 관광 |\n\n즐거운 하루 보내세요! \uD83C\uDF38",
+    "promptVersion" : "ai-chat-v2",
+    "model" : "openai/gpt-oss-120b",
+    "promptTokens" : 761,
+    "completionTokens" : 223,
+    "totalTokens" : 984,
+    "llmDurationMs" : 3380,
+    "serviceDurationMs" : 3669,
+    "errorType" : null
+  } ],
+  "summaries" : [ {
+    "group" : "independent",
+    "requests" : 1,
+    "promptTokens" : 761,
+    "completionTokens" : 223,
+    "totalTokens" : 984,
+    "firstPromptTokens" : 761,
+    "lastPromptTokens" : 761,
+    "growthPercent" : 0.0
+  }, {
+    "group" : "long-term",
+    "requests" : 0,
+    "promptTokens" : 0,
+    "completionTokens" : 0,
+    "totalTokens" : 0,
+    "firstPromptTokens" : 0,
+    "lastPromptTokens" : 0,
+    "growthPercent" : 0.0
+  }, {
+    "group" : "overall",
+    "requests" : 1,
+    "promptTokens" : 761,
+    "completionTokens" : 223,
+    "totalTokens" : 984,
+    "firstPromptTokens" : 761,
+    "lastPromptTokens" : 761,
+    "growthPercent" : 0.0
+  } ]
+}
