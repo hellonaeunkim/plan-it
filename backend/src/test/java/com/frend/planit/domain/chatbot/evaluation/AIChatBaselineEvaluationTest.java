@@ -69,18 +69,18 @@ class AIChatBaselineEvaluationTest {
     private static final String BASELINE_STAGE = "baseline";
     private static final String BASELINE_EXPECTED_VERSION = "ai-chat-v1";
     private static final String PROMPT_BOUNDARY_STAGE = "prompt-boundary";
-    private static final String RESPONSE_POLICY_STAGE = "response-policy-refined";
+    private static final String RESPONSE_POLICY_STAGE = "response-policy-v5";
     private static final String PROMPT_BOUNDARY_CASE_ID = "specific-date-schedule";
     private static final String PROMPT_BOUNDARY_EXPECTED_VERSION = "ai-chat-v2";
     private static final String PROMPT_BOUNDARY_BASELINE_VERSION = "ai-chat-v1";
     private static final String PROMPT_BOUNDARY_BASELINE_COMMIT = "3c0c931";
     private static final int PROMPT_BOUNDARY_BASELINE_TOKENS = 715;
-    private static final String RESPONSE_POLICY_EXPECTED_VERSION = "ai-chat-v4";
-    private static final String RESPONSE_POLICY_BASELINE_VERSION = "ai-chat-v3";
-    private static final String RESPONSE_POLICY_BASELINE_COMMIT = "539d293";
-    private static final int RESPONSE_POLICY_BASELINE_PROMPT_TOKENS = 13_157;
-    private static final int RESPONSE_POLICY_BASELINE_COMPLETION_TOKENS = 1_998;
-    private static final int RESPONSE_POLICY_BASELINE_TOTAL_TOKENS = 15_155;
+    private static final String RESPONSE_POLICY_EXPECTED_VERSION = "ai-chat-v5";
+    private static final String RESPONSE_POLICY_BASELINE_VERSION = "ai-chat-v4";
+    private static final String RESPONSE_POLICY_BASELINE_COMMIT = "dc84c46";
+    private static final int RESPONSE_POLICY_BASELINE_PROMPT_TOKENS = 10_998;
+    private static final int RESPONSE_POLICY_BASELINE_COMPLETION_TOKENS = 2_001;
+    private static final int RESPONSE_POLICY_BASELINE_TOTAL_TOKENS = 12_999;
     private static final String DATASET_PATH = "ai-chatbot/evaluation-dataset-v1.json";
     private static final Path BASELINE_ARTIFACT_PATH = Path.of(
             "build", "ai-evaluation", "baseline-results.json"
@@ -89,7 +89,7 @@ class AIChatBaselineEvaluationTest {
             "build", "ai-evaluation", "prompt-boundary-results.json"
     );
     private static final Path RESPONSE_POLICY_ARTIFACT_PATH = Path.of(
-            "build", "ai-evaluation", "response-policy-refined-results.json"
+            "build", "ai-evaluation", "response-policy-v5-results.json"
     );
     private static final Path TRACKED_ARTIFACT_DIRECTORY = Path.of(
             "..", "docs", "ai-chatbot", "evaluation-results"

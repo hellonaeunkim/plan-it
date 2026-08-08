@@ -165,10 +165,10 @@ tasks.register('groqPromptBoundaryEvaluation', Test) {
     outputs.upToDateWhen { false }
 }
 
-// 일정 데이터 의미를 보완한 응답 규칙으로 고정 평가셋 12건을 재측정 (실제 비용 발생)
+// 부족한 정보와 관련 일정을 함께 안내하는 v5 응답 규칙으로 고정 평가셋 12건을 재측정 (실제 비용 발생)
 tasks.register('groqResponsePolicyEvaluation', Test) {
     group = 'verification'
-    description = '실제 Groq API와 AIChatMessageService를 사용해 보완된 응답 근거 제한 규칙을 평가합니다.'
+    description = '실제 Groq API와 AIChatMessageService를 사용해 ai-chat-v5 응답 규칙을 평가합니다.'
 
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
