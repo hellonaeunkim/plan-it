@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.frend.planit.domain.accommodation.service.AccommodationService;
 import com.frend.planit.domain.calendar.entity.CalendarEntity;
 import com.frend.planit.domain.calendar.repository.CalendarRepository;
 import com.frend.planit.domain.calendar.schedule.day.entity.ScheduleDayEntity;
@@ -45,6 +46,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.util.StringUtils;
 
 /**
@@ -112,9 +114,13 @@ class AIChatBaselineEvaluationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @MockitoBean
+    private AccommodationService accommodationService;
+
     @Test
     void recordsBaselineTokenUsageAndResponses(CapturedOutput output) throws Exception {
         assertRealGroqConfigured();
+        GitSnapshot gitSnapshot = requireCleanGitSnapshot();
         JsonNode dataset = loadDataset();
         User user = createFixture(dataset.path("scheduleFixture"));
         List<EvaluationResult> results = new ArrayList<>();
@@ -127,7 +133,7 @@ class AIChatBaselineEvaluationTest {
             assertThat(results).allMatch(EvaluationResult::successful);
             printSummaries(results);
         } finally {
-            writeArtifact(dataset, results);
+            writeArtifact(dataset, results, gitSnapshot);
         }
     }
 
@@ -425,7 +431,11 @@ class AIChatBaselineEvaluationTest {
         );
     }
 
-    private void writeArtifact(JsonNode dataset, List<EvaluationResult> results) throws Exception {
+    private void writeArtifact(
+            JsonNode dataset,
+            List<EvaluationResult> results,
+            GitSnapshot gitSnapshot
+    ) throws Exception {
         Files.createDirectories(ARTIFACT_PATH.getParent());
 
         Map<String, Object> metadata = new LinkedHashMap<>();
@@ -433,7 +443,8 @@ class AIChatBaselineEvaluationTest {
         metadata.put("datasetVersion", dataset.path("datasetVersion").asText());
         metadata.put("datasetEvaluationDate", dataset.path("evaluationDate").asText());
         metadata.put("executedAt", OffsetDateTime.now().toString());
-        metadata.put("gitCommit", currentGitCommit());
+        metadata.put("gitCommit", gitSnapshot.commit());
+        metadata.put("workingTreeClean", gitSnapshot.workingTreeClean());
         metadata.put("model", model);
         metadata.put("baseUrl", baseUrl);
         metadata.put("modelOptions", Map.of(
@@ -461,16 +472,49 @@ class AIChatBaselineEvaluationTest {
         System.out.println("AI_EVAL_ARTIFACT path=" + ARTIFACT_PATH);
     }
 
-    private String currentGitCommit() throws IOException, InterruptedException {
-        Process process = new ProcessBuilder("git", "rev-parse", "--short", "HEAD")
+    private GitSnapshot requireCleanGitSnapshot() throws IOException, InterruptedException {
+        String commit = runGitCommand("rev-parse", "--short", "HEAD");
+        String workingTreeStatus = runGitCommand(
+                "status",
+                "--porcelain",
+                "--untracked-files=all"
+        );
+
+        if (!workingTreeStatus.isBlank()) {
+            String firstChange = workingTreeStatus.lines().findFirst().orElse("unknown");
+            System.out.println(
+                    "AI_EVAL_ABORTED reason=dirty-working-tree firstChange=" + firstChange
+            );
+            throw new IllegalStateException(
+                    "기준선 측정 전에 변경사항을 커밋하거나 임시 보관해야 합니다. "
+                            + "작업 트리가 깨끗하지 않습니다: "
+                            + firstChange
+            );
+        }
+
+        return new GitSnapshot(commit, true);
+    }
+
+    private String runGitCommand(String... arguments) throws IOException, InterruptedException {
+        List<String> command = new ArrayList<>();
+        command.add("git");
+        command.addAll(List.of(arguments));
+
+        Process process = new ProcessBuilder(command)
                 .redirectErrorStream(true)
                 .start();
         String output = new String(process.getInputStream().readAllBytes()).trim();
         int exitCode = process.waitFor();
         if (exitCode != 0 || output.isBlank()) {
-            throw new IllegalStateException("측정 Git 커밋을 확인할 수 없습니다: " + output);
+            if (exitCode == 0 && "status".equals(arguments[0])) {
+                return output;
+            }
+            throw new IllegalStateException("측정 Git 상태를 확인할 수 없습니다: " + output);
         }
         return output;
+    }
+
+    record GitSnapshot(String commit, boolean workingTreeClean) {
     }
 
     record EvaluationResult(
