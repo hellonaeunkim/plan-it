@@ -115,6 +115,15 @@ AI_EVAL_COMPARISON stage=prompt-boundary case=specific-date-schedule promptVersi
 
 ## 7. 결과 기록 양식
 
+외부 AI 평가가 모든 요청과 프롬프트 버전 검증을 통과하면 실행기가 다음 두 위치에 JSON을 저장한다.
+
+- `backend/build/ai-evaluation/*.json`: 가장 최근 실행 결과 확인용이며 Git에서 제외한다.
+- `docs/ai-chatbot/evaluation-results/{stage}-{gitCommit}.json`: 커밋별 공식 원본이며 Git에 포함한다.
+
+요청 실패, 결과 개수 불일치, 프롬프트 버전 불일치처럼 평가가 완료되지 않은 경우에는 부분 결과를 `build`에만 저장하고 공식 문서 경로에는 생성하지 않는다. 성공 후 출력되는 `AI_EVAL_TRACKED_ARTIFACT` 경로의 JSON을 검토하고 결과 문서와 함께 커밋한다.
+
+JSON의 메타데이터, 토큰, 응답 원문은 자동으로 기록한다. 다음 품질 점수와 해석은 자동 판정하지 않고 고정 루브릭으로 확인한 뒤 Markdown 결과 문서에 수동 기록한다.
+
 | 측정 날짜 | Git 커밋 | 질문 ID | promptTokens | completionTokens | totalTokens | llmDurationMs | serviceDurationMs | 품질 점수(충족/적용) | 비고 |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 |  |  |  |  |  |  |  |  |  |  |

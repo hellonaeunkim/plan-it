@@ -67,19 +67,20 @@ import org.springframework.util.StringUtils;
 class AIChatBaselineEvaluationTest {
 
     private static final String BASELINE_STAGE = "baseline";
+    private static final String BASELINE_EXPECTED_VERSION = "ai-chat-v1";
     private static final String PROMPT_BOUNDARY_STAGE = "prompt-boundary";
-    private static final String RESPONSE_POLICY_STAGE = "response-policy";
+    private static final String RESPONSE_POLICY_STAGE = "response-policy-refined";
     private static final String PROMPT_BOUNDARY_CASE_ID = "specific-date-schedule";
     private static final String PROMPT_BOUNDARY_EXPECTED_VERSION = "ai-chat-v2";
     private static final String PROMPT_BOUNDARY_BASELINE_VERSION = "ai-chat-v1";
     private static final String PROMPT_BOUNDARY_BASELINE_COMMIT = "3c0c931";
     private static final int PROMPT_BOUNDARY_BASELINE_TOKENS = 715;
-    private static final String RESPONSE_POLICY_EXPECTED_VERSION = "ai-chat-v3";
-    private static final String RESPONSE_POLICY_BASELINE_VERSION = "ai-chat-v1";
-    private static final String RESPONSE_POLICY_BASELINE_COMMIT = "3c0c931";
-    private static final int RESPONSE_POLICY_BASELINE_PROMPT_TOKENS = 11_551;
-    private static final int RESPONSE_POLICY_BASELINE_COMPLETION_TOKENS = 2_407;
-    private static final int RESPONSE_POLICY_BASELINE_TOTAL_TOKENS = 13_958;
+    private static final String RESPONSE_POLICY_EXPECTED_VERSION = "ai-chat-v4";
+    private static final String RESPONSE_POLICY_BASELINE_VERSION = "ai-chat-v3";
+    private static final String RESPONSE_POLICY_BASELINE_COMMIT = "539d293";
+    private static final int RESPONSE_POLICY_BASELINE_PROMPT_TOKENS = 13_157;
+    private static final int RESPONSE_POLICY_BASELINE_COMPLETION_TOKENS = 1_998;
+    private static final int RESPONSE_POLICY_BASELINE_TOTAL_TOKENS = 15_155;
     private static final String DATASET_PATH = "ai-chatbot/evaluation-dataset-v1.json";
     private static final Path BASELINE_ARTIFACT_PATH = Path.of(
             "build", "ai-evaluation", "baseline-results.json"
@@ -88,7 +89,10 @@ class AIChatBaselineEvaluationTest {
             "build", "ai-evaluation", "prompt-boundary-results.json"
     );
     private static final Path RESPONSE_POLICY_ARTIFACT_PATH = Path.of(
-            "build", "ai-evaluation", "response-policy-results.json"
+            "build", "ai-evaluation", "response-policy-refined-results.json"
+    );
+    private static final Path TRACKED_ARTIFACT_DIRECTORY = Path.of(
+            "..", "docs", "ai-chatbot", "evaluation-results"
     );
     private static final String EXPECTED_BASE_URL = "https://api.groq.com/openai";
     private static final String EXPECTED_MODEL = "openai/gpt-oss-120b";
@@ -148,6 +152,7 @@ class AIChatBaselineEvaluationTest {
         JsonNode dataset = loadDataset();
         User user = createFixture(dataset.path("scheduleFixture"), stage);
         List<EvaluationResult> results = new ArrayList<>();
+        boolean completed = false;
 
         try {
             runIndependentQuestions(dataset, user, output, results);
@@ -155,9 +160,13 @@ class AIChatBaselineEvaluationTest {
 
             assertThat(results).hasSize(12);
             assertThat(results).allMatch(EvaluationResult::successful);
+            assertThat(results)
+                    .extracting(EvaluationResult::promptVersion)
+                    .containsOnly(BASELINE_EXPECTED_VERSION);
             printSummaries(results);
+            completed = true;
         } finally {
-            writeArtifact(dataset, results, gitSnapshot);
+            writeArtifact(dataset, results, gitSnapshot, completed);
         }
     }
 
@@ -171,6 +180,7 @@ class AIChatBaselineEvaluationTest {
         JsonNode dataset = loadDataset();
         User user = createFixture(dataset.path("scheduleFixture"), stage);
         List<EvaluationResult> results = new ArrayList<>();
+        boolean completed = false;
 
         try {
             JsonNode question = findIndependentQuestion(dataset, PROMPT_BOUNDARY_CASE_ID);
@@ -190,8 +200,9 @@ class AIChatBaselineEvaluationTest {
                 assertThat(result.promptVersion()).isEqualTo(PROMPT_BOUNDARY_EXPECTED_VERSION);
             });
             printPromptBoundaryComparison(results.getFirst());
+            completed = true;
         } finally {
-            writeArtifact(dataset, results, gitSnapshot);
+            writeArtifact(dataset, results, gitSnapshot, completed);
         }
     }
 
@@ -205,6 +216,7 @@ class AIChatBaselineEvaluationTest {
         JsonNode dataset = loadDataset();
         User user = createFixture(dataset.path("scheduleFixture"), stage);
         List<EvaluationResult> results = new ArrayList<>();
+        boolean completed = false;
 
         try {
             runIndependentQuestions(dataset, user, output, results);
@@ -217,8 +229,9 @@ class AIChatBaselineEvaluationTest {
                     .containsOnly(RESPONSE_POLICY_EXPECTED_VERSION);
             printSummaries(results);
             printResponsePolicyComparison(results);
+            completed = true;
         } finally {
-            writeArtifact(dataset, results, gitSnapshot);
+            writeArtifact(dataset, results, gitSnapshot, completed);
         }
     }
 
@@ -584,7 +597,8 @@ class AIChatBaselineEvaluationTest {
     private void writeArtifact(
             JsonNode dataset,
             List<EvaluationResult> results,
-            GitSnapshot gitSnapshot
+            GitSnapshot gitSnapshot,
+            boolean completed
     ) throws Exception {
         Files.createDirectories(artifactPath.getParent());
 
@@ -636,6 +650,16 @@ class AIChatBaselineEvaluationTest {
 
         objectMapper.writerWithDefaultPrettyPrinter().writeValue(artifactPath.toFile(), artifact);
         System.out.println("AI_EVAL_ARTIFACT path=" + artifactPath);
+
+        if (completed) {
+            Files.createDirectories(TRACKED_ARTIFACT_DIRECTORY);
+            Path trackedArtifactPath = TRACKED_ARTIFACT_DIRECTORY.resolve(
+                    stage + "-" + gitSnapshot.commit() + ".json"
+            );
+            objectMapper.writerWithDefaultPrettyPrinter()
+                    .writeValue(trackedArtifactPath.toFile(), artifact);
+            System.out.println("AI_EVAL_TRACKED_ARTIFACT path=" + trackedArtifactPath);
+        }
     }
 
     private GitSnapshot requireCleanGitSnapshot() throws IOException, InterruptedException {
