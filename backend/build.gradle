@@ -148,6 +148,26 @@ tasks.register('groqBaselineEvaluation', Test) {
     outputs.upToDateWhen { false }
 }
 
+// 프롬프트 역할 경계 변경의 입력 토큰 고정 비용을 독립 질문 1건으로 측정 (실제 비용 발생)
+// 터미널 캡처가 필요하므로 사용자가 명시적으로만 실행한다: ./gradlew groqPromptBoundaryEvaluation --console=plain
+tasks.register('groqPromptBoundaryEvaluation', Test) {
+    group = 'verification'
+    description = '실제 Groq API와 AIChatMessageService를 사용해 프롬프트 경계 변경 질문 1건을 실행합니다.'
+
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+
+    useJUnitPlatform {
+        includeTags 'ai-prompt-boundary'
+    }
+
+    testLogging {
+        showStandardStreams = true
+    }
+
+    outputs.upToDateWhen { false }
+}
+
 tasks.register("compileQuerydsl", JavaCompile) {
     group = "build"
     description = "Generates the QueryDSL Q-types"

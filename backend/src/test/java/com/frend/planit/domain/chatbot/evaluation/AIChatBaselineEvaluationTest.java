@@ -50,13 +50,12 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.util.StringUtils;
 
 /**
- * 실제 Groq와 현재 AIChatMessageService 구현을 사용해 개선 전 기준값을 기록한다.
+ * 실제 Groq와 현재 AIChatMessageService 구현을 사용해 토큰과 답변을 기록한다.
  *
- * 이 테스트는 외부 API를 12회 호출하므로 기본 test 작업에서는 실행하지 않는다.
- * 사용자가 터미널 출력을 캡처할 때만 groqBaselineEvaluation 작업으로 명시 실행한다.
+ * 이 테스트는 기본 test 작업에서는 실행하지 않는다. 사용자가 터미널 출력을 캡처할 때만
+ * 목적에 맞는 전용 Gradle 작업으로 명시 실행한다.
  */
 @Tag("external-ai")
-@Tag("ai-baseline")
 @ExtendWith(OutputCaptureExtension.class)
 @SpringBootTest(properties = {
         "spring.mail.host=localhost",
@@ -67,10 +66,19 @@ import org.springframework.util.StringUtils;
 @ActiveProfiles({"test", "external-ai"})
 class AIChatBaselineEvaluationTest {
 
-    private static final String STAGE = "baseline";
+    private static final String BASELINE_STAGE = "baseline";
+    private static final String PROMPT_BOUNDARY_STAGE = "prompt-boundary";
+    private static final String PROMPT_BOUNDARY_CASE_ID = "specific-date-schedule";
+    private static final String PROMPT_BOUNDARY_EXPECTED_VERSION = "ai-chat-v2";
+    private static final String PROMPT_BOUNDARY_BASELINE_VERSION = "ai-chat-v1";
+    private static final String PROMPT_BOUNDARY_BASELINE_COMMIT = "3c0c931";
+    private static final int PROMPT_BOUNDARY_BASELINE_TOKENS = 715;
     private static final String DATASET_PATH = "ai-chatbot/evaluation-dataset-v1.json";
-    private static final Path ARTIFACT_PATH = Path.of(
+    private static final Path BASELINE_ARTIFACT_PATH = Path.of(
             "build", "ai-evaluation", "baseline-results.json"
+    );
+    private static final Path PROMPT_BOUNDARY_ARTIFACT_PATH = Path.of(
+            "build", "ai-evaluation", "prompt-boundary-results.json"
     );
     private static final String EXPECTED_BASE_URL = "https://api.groq.com/openai";
     private static final String EXPECTED_MODEL = "openai/gpt-oss-120b";
@@ -117,12 +125,18 @@ class AIChatBaselineEvaluationTest {
     @MockitoBean
     private AccommodationService accommodationService;
 
+    private String stage;
+    private Path artifactPath;
+
     @Test
+    @Tag("ai-baseline")
     void recordsBaselineTokenUsageAndResponses(CapturedOutput output) throws Exception {
+        stage = BASELINE_STAGE;
+        artifactPath = BASELINE_ARTIFACT_PATH;
         assertRealGroqConfigured();
         GitSnapshot gitSnapshot = requireCleanGitSnapshot();
         JsonNode dataset = loadDataset();
-        User user = createFixture(dataset.path("scheduleFixture"));
+        User user = createFixture(dataset.path("scheduleFixture"), stage);
         List<EvaluationResult> results = new ArrayList<>();
 
         try {
@@ -132,6 +146,40 @@ class AIChatBaselineEvaluationTest {
             assertThat(results).hasSize(12);
             assertThat(results).allMatch(EvaluationResult::successful);
             printSummaries(results);
+        } finally {
+            writeArtifact(dataset, results, gitSnapshot);
+        }
+    }
+
+    @Test
+    @Tag("ai-prompt-boundary")
+    void recordsPromptBoundaryTokenOverhead(CapturedOutput output) throws Exception {
+        stage = PROMPT_BOUNDARY_STAGE;
+        artifactPath = PROMPT_BOUNDARY_ARTIFACT_PATH;
+        assertRealGroqConfigured();
+        GitSnapshot gitSnapshot = requireCleanGitSnapshot();
+        JsonNode dataset = loadDataset();
+        User user = createFixture(dataset.path("scheduleFixture"), stage);
+        List<EvaluationResult> results = new ArrayList<>();
+
+        try {
+            JsonNode question = findIndependentQuestion(dataset, PROMPT_BOUNDARY_CASE_ID);
+            AIChatRoomEntity chatRoom = aiChatRoomRepository.save(AIChatRoomEntity.of(user));
+            executeCase(
+                    "independent",
+                    PROMPT_BOUNDARY_CASE_ID,
+                    question.path("question").asText(),
+                    user,
+                    chatRoom,
+                    output,
+                    results
+            );
+
+            assertThat(results).singleElement().satisfies(result -> {
+                assertThat(result.successful()).isTrue();
+                assertThat(result.promptVersion()).isEqualTo(PROMPT_BOUNDARY_EXPECTED_VERSION);
+            });
+            printPromptBoundaryComparison(results.getFirst());
         } finally {
             writeArtifact(dataset, results, gitSnapshot);
         }
@@ -244,7 +292,7 @@ class AIChatBaselineEvaluationTest {
             ));
             System.out.printf(
                     "AI_EVAL_FAILURE stage=%s group=%s case=%s errorType=%s%n",
-                    STAGE,
+                    stage,
                     group,
                     caseId,
                     error.getClass().getSimpleName()
@@ -259,10 +307,10 @@ class AIChatBaselineEvaluationTest {
         }
     }
 
-    private User createFixture(JsonNode scheduleFixture) {
+    private User createFixture(JsonNode scheduleFixture, String evaluationStage) {
         User user = userRepository.save(User.builder()
-                .loginId("ai-baseline-evaluation-user")
-                .nickname("ai-baseline-evaluation-user")
+                .loginId("ai-" + evaluationStage + "-evaluation-user")
+                .nickname("ai-" + evaluationStage + "-evaluation-user")
                 .loginType(LoginType.LOCAL)
                 .build());
 
@@ -277,7 +325,7 @@ class AIChatBaselineEvaluationTest {
 
         CalendarEntity calendar = calendarRepository.save(CalendarEntity.builder()
                 .user(user)
-                .calendarTitle("AI 기준선 평가")
+                .calendarTitle("AI " + evaluationStage + " 평가")
                 .startDate(earliestDate.atStartOfDay())
                 .endDate(latestDate.atTime(23, 59))
                 .build());
@@ -337,6 +385,15 @@ class AIChatBaselineEvaluationTest {
         }
     }
 
+    private JsonNode findIndependentQuestion(JsonNode dataset, String caseId) {
+        for (JsonNode question : dataset.path("independentQuestions")) {
+            if (caseId.equals(question.path("id").asText())) {
+                return question;
+            }
+        }
+        throw new IllegalStateException("독립 질문 fixture가 없습니다: " + caseId);
+    }
+
     private void assertRealGroqConfigured() {
         boolean configured = StringUtils.hasText(apiKey)
                 && !PLACEHOLDER_API_KEY.equals(apiKey)
@@ -355,7 +412,7 @@ class AIChatBaselineEvaluationTest {
                 Locale.ROOT,
                 "AI_EVAL_RESULT stage=%s group=%s case=%s promptTokens=%d "
                         + "completionTokens=%d totalTokens=%d llmDurationMs=%d serviceDurationMs=%d%n",
-                STAGE,
+                stage,
                 result.group(),
                 result.caseId(),
                 result.promptTokens(),
@@ -363,6 +420,25 @@ class AIChatBaselineEvaluationTest {
                 result.totalTokens(),
                 result.llmDurationMs(),
                 result.serviceDurationMs()
+        );
+    }
+
+    private void printPromptBoundaryComparison(EvaluationResult result) {
+        int deltaPromptTokens = result.promptTokens() - PROMPT_BOUNDARY_BASELINE_TOKENS;
+        double changePercent = deltaPromptTokens * 100.0 / PROMPT_BOUNDARY_BASELINE_TOKENS;
+
+        System.out.printf(
+                Locale.ROOT,
+                "AI_EVAL_COMPARISON stage=%s case=%s promptVersion=%s "
+                        + "baselinePromptTokens=%d currentPromptTokens=%d "
+                        + "deltaPromptTokens=%+d changePercent=%+.2f%n",
+                stage,
+                result.caseId(),
+                result.promptVersion(),
+                PROMPT_BOUNDARY_BASELINE_TOKENS,
+                result.promptTokens(),
+                deltaPromptTokens,
+                changePercent
         );
     }
 
@@ -374,7 +450,7 @@ class AIChatBaselineEvaluationTest {
         System.out.printf(
                 "AI_EVAL_SUMMARY stage=%s group=independent requests=%d "
                         + "promptTokens=%d completionTokens=%d totalTokens=%d%n",
-                STAGE,
+                stage,
                 independent.requests(),
                 independent.promptTokens(),
                 independent.completionTokens(),
@@ -385,7 +461,7 @@ class AIChatBaselineEvaluationTest {
                 "AI_EVAL_SUMMARY stage=%s group=long-term requests=%d "
                         + "promptTokens=%d completionTokens=%d totalTokens=%d "
                         + "firstPromptTokens=%d lastPromptTokens=%d growthPercent=%.2f%n",
-                STAGE,
+                stage,
                 longTerm.requests(),
                 longTerm.promptTokens(),
                 longTerm.completionTokens(),
@@ -397,7 +473,7 @@ class AIChatBaselineEvaluationTest {
         System.out.printf(
                 "AI_EVAL_SUMMARY stage=%s group=overall requests=%d "
                         + "promptTokens=%d completionTokens=%d totalTokens=%d%n",
-                STAGE,
+                stage,
                 overall.requests(),
                 overall.promptTokens(),
                 overall.completionTokens(),
@@ -436,10 +512,10 @@ class AIChatBaselineEvaluationTest {
             List<EvaluationResult> results,
             GitSnapshot gitSnapshot
     ) throws Exception {
-        Files.createDirectories(ARTIFACT_PATH.getParent());
+        Files.createDirectories(artifactPath.getParent());
 
         Map<String, Object> metadata = new LinkedHashMap<>();
-        metadata.put("stage", STAGE);
+        metadata.put("stage", stage);
         metadata.put("datasetVersion", dataset.path("datasetVersion").asText());
         metadata.put("datasetEvaluationDate", dataset.path("evaluationDate").asText());
         metadata.put("executedAt", OffsetDateTime.now().toString());
@@ -458,6 +534,14 @@ class AIChatBaselineEvaluationTest {
                 .findFirst()
                 .orElse("unknown"));
         metadata.put("requestIntervalMs", REQUEST_INTERVAL_MS);
+        if (PROMPT_BOUNDARY_STAGE.equals(stage)) {
+            metadata.put("baselineReference", Map.of(
+                    "gitCommit", PROMPT_BOUNDARY_BASELINE_COMMIT,
+                    "promptVersion", PROMPT_BOUNDARY_BASELINE_VERSION,
+                    "caseId", PROMPT_BOUNDARY_CASE_ID,
+                    "promptTokens", PROMPT_BOUNDARY_BASELINE_TOKENS
+            ));
+        }
 
         Map<String, Object> artifact = new LinkedHashMap<>();
         artifact.put("metadata", metadata);
@@ -468,8 +552,8 @@ class AIChatBaselineEvaluationTest {
                 summarize("overall", results)
         ));
 
-        objectMapper.writerWithDefaultPrettyPrinter().writeValue(ARTIFACT_PATH.toFile(), artifact);
-        System.out.println("AI_EVAL_ARTIFACT path=" + ARTIFACT_PATH);
+        objectMapper.writerWithDefaultPrettyPrinter().writeValue(artifactPath.toFile(), artifact);
+        System.out.println("AI_EVAL_ARTIFACT path=" + artifactPath);
     }
 
     private GitSnapshot requireCleanGitSnapshot() throws IOException, InterruptedException {
@@ -486,7 +570,7 @@ class AIChatBaselineEvaluationTest {
                     "AI_EVAL_ABORTED reason=dirty-working-tree firstChange=" + firstChange
             );
             throw new IllegalStateException(
-                    "기준선 측정 전에 변경사항을 커밋하거나 임시 보관해야 합니다. "
+                    "외부 AI 측정 전에 변경사항을 커밋하거나 임시 보관해야 합니다. "
                             + "작업 트리가 깨끗하지 않습니다: "
                             + firstChange
             );

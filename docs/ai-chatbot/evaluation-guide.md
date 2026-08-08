@@ -68,6 +68,23 @@
 이전 턴 대비 증가량 = 현재 턴 promptTokens - 직전 턴 promptTokens
 ```
 
+### 4.3 프롬프트 경계 변경 1회 측정
+
+시스템 정책과 사용자 컨텍스트의 경계만 변경한 뒤에는 전체 평가셋을 실행하지 않는다. 공식 기준선에서 `promptTokens=715`였던 `specific-date-schedule` 질문 한 건만 같은 fixture와 새 채팅방에서 실행해, 경계 표시 문구가 추가하거나 제거한 입력 토큰의 고정 비용을 확인한다.
+
+```bash
+cd backend
+./gradlew groqPromptBoundaryEvaluation --console=plain
+```
+
+이 작업은 실제 Groq API를 한 번 호출하므로 기본 `./gradlew test`에서는 실행되지 않는다. 실행 전에 변경 사항을 커밋해 작업 트리를 깨끗하게 만들고, 터미널에서 다음 한 줄을 캡처한다.
+
+```text
+AI_EVAL_COMPARISON stage=prompt-boundary case=specific-date-schedule promptVersion=ai-chat-v2 baselinePromptTokens=715 currentPromptTokens=... deltaPromptTokens=... changePercent=...
+```
+
+이 결과는 고정 fixture 한 건에서 프롬프트 경계 문구의 입력 토큰 변화만 설명한다. 전체 질문의 평균 토큰 변화나 답변 품질 유지 근거로 사용하지 않는다. 원문 답변과 전체 메트릭은 `backend/build/ai-evaluation/prompt-boundary-results.json`에 기록한다.
+
 ## 5. 기록할 수치
 
 현재 컨텍스트의 토큰 사용량을 확인하는 주 지표는 애플리케이션이 직접 제어하는 `promptTokens`로 한다. AI 답변 길이에 따라 달라지는 `completionTokens`와 `totalTokens`는 보조 지표로 함께 기록한다.
