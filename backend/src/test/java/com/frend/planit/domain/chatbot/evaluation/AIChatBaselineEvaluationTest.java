@@ -86,15 +86,19 @@ class AIChatBaselineEvaluationTest {
     private static final String BASELINE_EXPECTED_VERSION = "ai-chat-v1";
     private static final String PROMPT_BOUNDARY_STAGE = "prompt-boundary";
     private static final String RESPONSE_POLICY_STAGE = "response-policy-v5";
+    private static final String SCHEDULE_SCOPE_STAGE = "schedule-scope";
     private static final String PROMPT_BOUNDARY_CASE_ID = "specific-date-schedule";
     private static final String PROMPT_BOUNDARY_EXPECTED_VERSION = "ai-chat-v2";
     private static final String RESPONSE_POLICY_EXPECTED_VERSION = "ai-chat-v5";
+    private static final String SCHEDULE_SCOPE_EXPECTED_VERSION = "ai-chat-v6";
 
     // 비교 기준 수치는 상수로 옮겨 적지 않고 아래 결과 파일에서 직접 읽는다.
     // 다음 프롬프트 버전을 측정할 때는 이 파일 이름만 직전 측정 결과로 교체한다.
     private static final String PROMPT_BOUNDARY_BASELINE_ARTIFACT = "baseline-3c0c931.json";
     private static final String RESPONSE_POLICY_BASELINE_ARTIFACT =
             "response-policy-refined-dc84c46.json";
+    private static final String SCHEDULE_SCOPE_BASELINE_ARTIFACT =
+            "response-policy-v5-95f7fa4.json";
 
     private static final String DATASET_PATH = "ai-chatbot/evaluation-dataset-v1.json";
     private static final Path BASELINE_ARTIFACT_PATH = Path.of(
@@ -105,6 +109,9 @@ class AIChatBaselineEvaluationTest {
     );
     private static final Path RESPONSE_POLICY_ARTIFACT_PATH = Path.of(
             "build", "ai-evaluation", "response-policy-v5-results.json"
+    );
+    private static final Path SCHEDULE_SCOPE_ARTIFACT_PATH = Path.of(
+            "build", "ai-evaluation", "schedule-scope-results.json"
     );
     private static final String EXPECTED_BASE_URL = "https://api.groq.com/openai";
     private static final String EXPECTED_MODEL = "openai/gpt-oss-120b";
@@ -120,6 +127,12 @@ class AIChatBaselineEvaluationTest {
 
     @Value("${spring.ai.openai.chat.options.model:}")
     private String model;
+
+    @Value("${planit.ai.chat.schedule-look-ahead-days:0}")
+    private int scheduleLookAheadDays;
+
+    @Value("${planit.ai.chat.max-schedules:0}")
+    private int maxSchedules;
 
     @Autowired
     private OpenAiChatModel chatClient;
@@ -265,7 +278,42 @@ class AIChatBaselineEvaluationTest {
                     .extracting(EvaluationResult::promptVersion)
                     .containsOnly(RESPONSE_POLICY_EXPECTED_VERSION);
             printSummaries(results);
-            printResponsePolicyComparison(results, baseline);
+            printOverallComparison(results, baseline);
+            completed = true;
+        } finally {
+            writeArtifact(dataset, results, gitSnapshot, completed);
+        }
+    }
+
+    @Test
+    @Tag("ai-schedule-scope")
+    void recordsScheduleScopeTokenUsageAndResponses(CapturedOutput output) throws Exception {
+        stage = SCHEDULE_SCOPE_STAGE;
+        artifactPath = SCHEDULE_SCOPE_ARTIFACT_PATH;
+        assertRealGroqConfigured();
+        assertScheduleScopeConfigured();
+        OverallBaseline baseline = AIChatEvaluationArtifacts.loadOverallBaseline(
+                objectMapper,
+                SCHEDULE_SCOPE_BASELINE_ARTIFACT
+        );
+        baselineMetadata = baseline.toMetadata();
+        GitSnapshot gitSnapshot = requireCleanGitSnapshot();
+        JsonNode dataset = loadDataset();
+        User user = createFixture(dataset.path("scheduleFixture"), stage);
+        List<EvaluationResult> results = new ArrayList<>();
+        boolean completed = false;
+
+        try {
+            runIndependentQuestions(dataset, user, output, results);
+            runLongTermScenario(dataset, user, output, results);
+
+            assertThat(results).hasSize(12);
+            assertThat(results).allMatch(EvaluationResult::successful);
+            assertThat(results)
+                    .extracting(EvaluationResult::promptVersion)
+                    .containsOnly(SCHEDULE_SCOPE_EXPECTED_VERSION);
+            printSummaries(results);
+            printOverallComparison(results, baseline);
             completed = true;
         } finally {
             writeArtifact(dataset, results, gitSnapshot, completed);
@@ -498,6 +546,11 @@ class AIChatBaselineEvaluationTest {
         assertThat(Mockito.mockingDetails(chatClient).isMock()).isFalse();
     }
 
+    private void assertScheduleScopeConfigured() {
+        assertThat(scheduleLookAheadDays).isEqualTo(180);
+        assertThat(maxSchedules).isEqualTo(3);
+    }
+
     private void printResult(EvaluationResult result) {
         System.out.printf(
                 Locale.ROOT,
@@ -536,7 +589,7 @@ class AIChatBaselineEvaluationTest {
         );
     }
 
-    private void printResponsePolicyComparison(
+    private void printOverallComparison(
             List<EvaluationResult> results,
             OverallBaseline baseline
     ) {
@@ -652,6 +705,7 @@ class AIChatBaselineEvaluationTest {
         metadata.put("stage", stage);
         metadata.put("datasetVersion", dataset.path("datasetVersion").asText());
         metadata.put("datasetEvaluationDate", dataset.path("evaluationDate").asText());
+        metadata.put("contextReferenceDateTime", OffsetDateTime.now(EVALUATION_CLOCK).toString());
         metadata.put("executedAt", OffsetDateTime.now().toString());
         metadata.put("gitCommit", gitSnapshot.commit());
         metadata.put("workingTreeClean", gitSnapshot.workingTreeClean());
@@ -668,6 +722,10 @@ class AIChatBaselineEvaluationTest {
                 .findFirst()
                 .orElse("unknown"));
         metadata.put("requestIntervalMs", REQUEST_INTERVAL_MS);
+        metadata.put("scheduleContext", Map.of(
+                "lookAheadDays", scheduleLookAheadDays,
+                "maxSchedules", maxSchedules
+        ));
         if (baselineMetadata != null) {
             metadata.put("baselineReference", baselineMetadata);
         }

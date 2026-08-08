@@ -184,6 +184,25 @@ tasks.register('groqResponsePolicyEvaluation', Test) {
     outputs.upToDateWhen { false }
 }
 
+// 과거 일정 제외와 일정 개수 상한을 적용한 v6 컨텍스트로 고정 평가셋 12건을 재측정 (실제 비용 발생)
+tasks.register('groqScheduleScopeEvaluation', Test) {
+    group = 'verification'
+    description = '실제 Groq API와 AIChatMessageService를 사용해 ai-chat-v6 일정 범위 제한을 평가합니다.'
+
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+
+    useJUnitPlatform {
+        includeTags 'ai-schedule-scope'
+    }
+
+    testLogging {
+        showStandardStreams = true
+    }
+
+    outputs.upToDateWhen { false }
+}
+
 // querydsl 수동 빌드 task 정의
 tasks.register("compileQuerydsl", JavaCompile) {
     group = "build"

@@ -33,6 +33,20 @@ class AIChatEvaluationArtifactsTest {
     }
 
     @Test
+    void readsOverallTotalsFromResponsePolicyV5Artifact() throws Exception {
+        OverallBaseline baseline = AIChatEvaluationArtifacts.loadOverallBaseline(
+                objectMapper,
+                "response-policy-v5-95f7fa4.json"
+        );
+
+        assertThat(baseline.gitCommit()).isEqualTo("95f7fa4");
+        assertThat(baseline.promptVersion()).isEqualTo("ai-chat-v5");
+        assertThat(baseline.promptTokens()).isEqualTo(11_176);
+        assertThat(baseline.completionTokens()).isEqualTo(2_581);
+        assertThat(baseline.totalTokens()).isEqualTo(13_757);
+    }
+
+    @Test
     void readsSingleCasePromptTokensFromBaselineArtifact() throws Exception {
         CaseBaseline baseline = AIChatEvaluationArtifacts.loadCaseBaseline(
                 objectMapper,
