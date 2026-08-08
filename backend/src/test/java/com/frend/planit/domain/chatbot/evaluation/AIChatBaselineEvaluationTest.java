@@ -325,7 +325,7 @@ class AIChatBaselineEvaluationTest {
 
         CalendarEntity calendar = calendarRepository.save(CalendarEntity.builder()
                 .user(user)
-                .calendarTitle("AI " + evaluationStage + " 평가")
+                .calendarTitle("AI 챗봇 평가")
                 .startDate(earliestDate.atStartOfDay())
                 .endDate(latestDate.atTime(23, 59))
                 .build());
