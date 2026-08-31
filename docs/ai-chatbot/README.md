@@ -10,7 +10,7 @@ ai-chatbot/
 └── evaluation/
     ├── guide.md   평가 실행 및 채점 기준
     ├── summary.md 전체 리팩토링 결과 비교
-    ├── reports/   사람이 검토한 단계별 결과
+    ├── reports/   JSON 응답을 Codex가 보조 검토한 단계별 결과
     └── artifacts/ 평가 실행기가 생성한 JSON 원본
 ```
 
@@ -28,4 +28,4 @@ ai-chatbot/
    - [일정 조회 범위 제한](./evaluation/reports/schedule-scope-fc6916b.md)
    - [최근 3턴 대화 윈도우](./evaluation/reports/recent-window-62779fd.md)
 
-`reports`의 수치와 해석은 같은 파일명을 가진 `artifacts`의 JSON을 근거로 작성한다.
+`reports`의 자동 측정 수치와 응답 원문은 같은 파일명을 가진 `artifacts`의 JSON을 근거로 한다. 품질 판정과 해석은 Codex 보조 검토 결과이며, 재현 가능한 자동 품질 지표가 아니라 응답 사례 분석을 위한 참고 자료다.
